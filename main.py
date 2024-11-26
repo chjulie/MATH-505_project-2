@@ -1,52 +1,12 @@
 import numpy as np 
 import matplotlib.pyplot as pyplot
-from mpi4py import MPI
-from functions import random_nystroem, p_random_nystroem
+import pandas as pd
+#from mpi4py import MPI
 
-def pol_decay(n: int, R: int, p: float) -> np.array:
+from data_helpers import pol_decay, exp_decay, get_MNIST_data, get_YearpredictionMSD_data
+#from functions import nuclear_error, random_nystroem, p_random_nystroem
 
-    d1 = np.ones(R, dtype=float)
-    d2 = np.arange(n-R, dtype=float)
-
-    f = lambda i,p: (i+2) ** (-p) 
-
-    d2_fin = f(d2, p)
-    d = np.concatenate((d1, d2_fin))
-    A = np.diag(d)
-
-    return A
-
-def exp_decay(n: int, R: int, q: float) -> np.array:
-
-    d1 = np.ones(R)
-    d2 = np.arange(n-R)
-
-    f = lambda i,q: 10**(-(i+1)*q)
-
-    d2_fin = f(d2, q)
-    d = np.concatenate((d1, d2_fin))
-    A = np.diag(d)
-
-    return A
-
-def MNIST_data() -> np.array:
-    #TODO: Build n,n dense matrix A from MNIST dataset using radial basis function
-    c = 100
-
-    return A
-
-def YearpredictionMSD_data() -> np.array:
-    #TODO: Build n,n dense matrix A from YearpredictionMSD dataset using radial basis function
-    c = 1e4 # or 1e5
-
-    return A
-
-def nuclear_error(A, A_nyst, k):
-    #TODO compute error of rank-k truncation of the Nystroem approx. using the nuclear norm
-
-    return
-
-if __name__ == "__main__:
+if __name__ == "__main__":
 
     # 1. Import datasets
     # 1.1 Synthetic dataset (polynomial and exponential decay matrices)
@@ -57,12 +17,23 @@ if __name__ == "__main__:
     ps = [0.5, 1, 2] # controls the rate of polynomial decay
     qs = [0.1, 0.25, 1.0] # controls the rate of exponential decay
 
-    A1 = pol_decay(n, R, p)
-    A2 = exp_decay(n, R, q)
+    # A1 = pol_decay(n, Rs[0], ps[0])
+    # A2 = exp_decay(n, Rs[0], qs[0])
 
     # 1.2.1 MNIST dataset
     # (ex 10)
 
+    data = pd.read_csv('data/mnist.scale')
+    r = 45
+    col_data_str = data.iloc[r,:][0]
+
+    #
+    col_index = col_data_str[0]
+    rowid_data_pairs = col_data_str[1:].split()
+
+    print(len(rowid_data_pairs))
+
+    #size = get_MNIST_data('data/mnist.scale', 10, 2)
 
     # 1.2.2 YearpredictionMSD dataset
 
