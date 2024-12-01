@@ -1,5 +1,8 @@
 import numpy as np
 import scipy
+import random
+import torch
+from hadamard_transform import hadamard_transform
 
 # from mpi4py import MPI
 
@@ -20,7 +23,7 @@ def rand_nystrom_seq(
     try:
         # Try Cholesky
         L = np.linalg.cholesky(B)
-        Z = np.linalg.lstsq(L, C.T)[0]
+        Z = np.linalg.lstsq(L, C.T, rcond=None)[0]
         Z = Z.T
     except np.linalg.LinAlgError as err:
         # # Method1: Compute the SVD of B
@@ -40,7 +43,7 @@ def rand_nystrom_seq(
         # Does this factorization actually work?
         L = lu[perm, :]
         Cperm = C[:, perm]
-        Z = np.linalg.lstsq(L, Cperm.T)[0]
+        Z = np.linalg.lstsq(L, Cperm.T, rcond=None)[0]
         Z = Z.T
 
     Q, R = np.linalg.qr(Z)
@@ -60,5 +63,40 @@ def rand_nystrom_seq(
         return U_hat_k, Sigma_k @ Sigma_k, U_hat_k.T
 
 
+def rand_nystrom_parallel(A: np.ndarray, Omega: np.ndarray, k: int) -> np.ndarray:
+    # 1. Compute C = A @ Omega
+
+    # 2.1 Compute B = Omega.T @ C
+
+    # 2.2 Compute the Cholesky factorization of B: B = LL^T or eigen value decomposition
+
+    # 3. Compute Z = C @ L.T with substitution
+
+    # 4. Compute the QR factorization Z = QR
+
+    # 5. Compute the truncated rank-k SVD of R: R = U Sigma V.T
+
+    # 6. Compute U_hat = Q @ U
+
+    # 7. Output factorization [A_nyst]_k = U_hat Sigma^2 U_hat.T
+    pass
+
+
 def create_sketch_matrix_gaussian(n: int, l: int) -> np.ndarray:
+    # TODO: check the numtiplication by 1/sqrt(n)
+    # return (1 / np.sqrt(n)) * np.random.normal(loc=0.0, scale=1.0, size=[n, l])
     return np.random.normal(loc=0.0, scale=1.0, size=[n, l])
+
+
+def create_sketch_matrix_SHRT(n: int, l: int) -> np.ndarray:
+    # n x n => l x n
+    d = np.array([1 if random.random() < 0.5 else -1 for _ in range(n)])
+    D = np.diag(np.sqrt(n / l) * d)
+    P = random.sample(range(n), l)
+    Omega_T = D
+    Omega_T = np.array(
+        [hadamard_transform(torch.from_numpy(Omega_T[:, i])).numpy() for i in range(n)]
+    )
+    Omega_T = Omega_T.T
+    Omega_T = Omega_T[P, :]
+    return Omega_T.T

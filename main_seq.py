@@ -1,18 +1,32 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from data_helpers import pol_decay, exp_decay
-from functions import rand_nystrom_seq
+from functions import (
+    rand_nystrom_seq,
+    create_sketch_matrix_gaussian,
+    create_sketch_matrix_SHRT,
+)
 from plot import setIndividualTitles, setColNames
+import torch
+from hadamard_transform import hadamard_transform
+
 
 if __name__ == "__main__":
 
-    n = 10**3
+    n = 1024  # 10**3
     l = 50
     Rs = [5, 10, 20]
-    ks = [20, 20, 20]  # k < l!!!
+    ks = [50, 50, 50]  # k < l!!!
     ps = [0.5, 1, 2]
     qs = [0.1, 0.25, 1.0]
-    Omega = np.random.normal(loc=0.0, scale=1.0, size=[n, l])
+    sketching = "gaussian"  # "gaussian"  # "SHRT"
+
+    if sketching == "gaussian":
+        Omega = create_sketch_matrix_gaussian(n, l)
+    elif sketching == "SHRT":
+        Omega = create_sketch_matrix_SHRT(n, l)
+    # print(Omega.shape)
+
     colors = ["#003aff", "#ff8f00", "#b200ff"]
 
     # Grid of plots
