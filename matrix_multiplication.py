@@ -15,30 +15,6 @@ if n_blocks_col**2 != int(size):
         print("The number of processors must be a perfect square")
     exit(-1)
 
-# # Define the matrix
-# local_size = 2  # parameter hardcoded here
-# n = int(np.sqrt(size)) * local_size
-# matrix = np.arange(1, n * n + 1, 1, dtype="float")
-# matrix = np.reshape(matrix, (n, n))
-# arrs = np.split(matrix, n, axis=1)
-# raveled = [np.ravel(arr) for arr in arrs]
-# matrix_transpose = np.concatenate(raveled)
-
-# nb_x_col = 3
-# x = np.ones((n, nb_x_col))
-# sol_mult_1 = np.empty((n, nb_x_col), dtype="float")
-# sol_mult_2 = np.empty((nb_x_col, nb_x_col), dtype="float")
-# sol_mult_3_1 = np.empty((n, nb_x_col), dtype="float")
-# sol_mult_3_2 = np.empty((nb_x_col, nb_x_col), dtype="float")
-
-# if rank == 0:
-#     print(matrix)
-#     print(x)
-
-# comm_cols = comm.Split(color=rank / n_blocks_row, key=rank % n_blocks_row)
-# comm_rows = comm.Split(color=rank % n_blocks_row, key=rank / n_blocks_row)
-
-
 # in the context of this project, we will have the matrix A already built like this, and available at process 0
 # now we need to broadcast it to the correst processors to make sure with can divide it by black after
 # no need to broadcast it on every processor!
@@ -81,7 +57,7 @@ if rank == 0:  # only process 0 has the matrix initially
 comm_cols = comm.Split(color=rank / n_blocks_row, key=rank % n_blocks_row)
 comm_rows = comm.Split(color=rank % n_blocks_row, key=rank / n_blocks_row)
 
-matrix = comm_rows.bcast(matrix, root=0)
+# matrix = comm_rows.bcast(matrix, root=0)
 matrix_transpose = comm_rows.bcast(matrix_transpose, root=0)
 x = comm_rows.bcast(x, root=0)
 x = comm_cols.bcast(x, root=0)  # for mult_2 and mult_3, no need for mult_1
@@ -186,10 +162,8 @@ elif choice == "mult_2":
             x.T @ matrix @ x,
         )
 
-
+# Both parallel multiplication at the same time now
 elif choice == "mult_3":
-
-    # Both parallel multiplication at the same time now
     x_block = np.empty((local_size, nb_x_col), dtype="float")
     comm_cols.Scatterv(x, x_block, root=0)
 
