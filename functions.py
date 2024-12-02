@@ -79,17 +79,22 @@ def rand_nystrom_parallel(
     rank,
     rank_cols,
     rank_rows,
+    size_rows,
 ) -> Tuple[np.ndarray, np.ndarray]:
 
     # 1. Compute C = A @ Omega
     C = None
     if rank == 0:
         C = np.empty((n, l), dtype="float")
-    C_local = A_local @ Omega_local
-    rowmult = np.empty((n_local, l), dtype="float")
-    comm_cols.Reduce(C_local, rowmult, op=MPI.SUM, root=0)
-    if rank_cols == 0:
-        comm_rows.Gather(rowmult, C, root=0)
+    C_local_subpart = A_local @ Omega_local
+    C_local = np.empty(
+        (n_local, l), dtype="float"
+    )  # TODO: is it the best way to do it??
+    comm_cols.Reduce(C_local_subpart, C_local, op=MPI.SUM, root=0)
+    if (
+        rank_cols == 0
+    ):  # TODO: this might not even be necessary, because technically no need to assemble C
+        comm_rows.Gather(C_local, C, root=0)
 
     # 2.1 Compute B = Omega.T @ C
     B = None
@@ -98,21 +103,61 @@ def rand_nystrom_parallel(
     B_local = OmegaT_local @ A_local @ Omega_local
     comm.Reduce(B_local, B, op=MPI.SUM, root=0)
 
-    return C, B
-
+    L = None
+    permute = False
+    perm = None
     # 2.2 Compute the Cholesky factorization of B: B = LL^T or eigen value decomposition
+    if rank == 0:  # compute only at the root
+        try:  # Try Cholesky
+            L = np.linalg.cholesky(B)
+        except np.linalg.LinAlgError as err:
+            # Do LDL Factorization (TODO: might need to do change)
+            lu, d, perm = scipy.linalg.ldl(B)
+            # Question for you: why is the following line not 100% correct?
+            lu = lu @ np.sqrt(np.abs(d))
+            # Does this factorization actually work?
+            L = lu[perm, :]
+            permute = True
+
+    L = comm_rows.bcast(L, root=0)  # broadcast through rows
+    perm = comm_rows.bcast(perm, root=0)
+    if permute == True and rank_cols == 0:
+        C_local = C_local[:, perm]
 
     # 3. Compute Z = C @ L.T with substitution
+    # this is only computed in processes of the first column (with rank_cols = 0)
+    Z_local = None
+    if rank_cols == 0:
+        Z_local = np.linalg.lstsq(L, C_local.T, rcond=None)[0]
+        Z_local = Z_local.T
 
     # 4. Compute the QR factorization Z = QR
+    R = None
+    Q_local = None
+    if rank_cols == 0:
+        Q_local, R = TSQR(Z_local, l, comm_rows, rank_rows, size_rows)
 
     # 5. Compute the truncated rank-k SVD of R: R = U Sigma V.T
+    U_tilde = None
+    S = None
+    Sigma_2 = None
+    if rank == 0:
+        U_tilde, S, V = np.linalg.svd(R)
+        Sigma = np.diag(S)
+        # truncate to get rank k
+        U_tilde = U_tilde[:, :k]
+        Sigma = Sigma[:k, :k]
+        Sigma_2 = Sigma @ Sigma
+
+    U_tilde = comm_rows.bcast(U_tilde, root=0)  # broadcast through rows
 
     # 6. Compute U_hat = Q @ U
+    U_hat_local = np.empty((A_local.shape[0], k), dtype="float")
+    if rank_cols == 0:
+        U_hat_local = Q_local @ U_tilde
 
     # 7. Output factorization [A_nyst]_k = U_hat Sigma^2 U_hat.T
-
-    return 0, 0
+    return U_hat_local, Sigma_2
 
 
 def create_sketch_matrix_gaussian_seq(n: int, l: int, seed: int = 10) -> np.ndarray:
@@ -152,3 +197,73 @@ def is_power_of_two(n):
     while n % 2 == 0:
         n //= 2
     return n == 1
+
+
+def TSQR(W_local, n, comm, rank, size):
+    R = None
+
+    # At first step, compute local Householder QR
+    Q_local, R_local = np.linalg.qr(W_local)  # sequential QR with numpy
+
+    # Store the Q factors generated at each depth level
+    Q_factors = [Q_local]
+    depth = int(np.log2(size))
+
+    for k in range(depth):
+        I = int(rank)
+
+        # processes that need to exit the loop
+        # are the processes that has a neighbor I - 2**k in the previous loop
+        # also do not remove any process at the first iteration
+        if (k != 0) and ((I % (2 ** (k))) >= 2 ** (k - 1)):
+            break
+
+        if (I % (2 ** (k + 1))) < 2**k:
+            J = I + 2**k
+        else:
+            J = I - 2**k
+
+        if I > J:
+            comm.send(
+                R_local, dest=J, tag=I + J
+            )  # this tag makes sure it is the same for both partners
+        else:
+            other_R_local = comm.recv(source=J, tag=I + J)
+            new_R = np.vstack((R_local, other_R_local))
+            Q_local, R_local = np.linalg.qr(new_R)
+            Q_factors.insert(0, Q_local)
+
+    comm.Barrier()  # make sure all have finished
+
+    nb_Q_factors_local = len(Q_factors)
+
+    # Now need to compute Q
+    # Get Q in reverse order, starting from root to the leaves
+    i_local = 0
+    nb_Q_factors_local = len(Q_factors)
+    if rank == 0:
+        R = R_local  # R matrix was computed already, stored in process 0
+        Q_local = Q_factors[i_local]  # Q is intialized to last Q_local
+        i_local += 1
+
+    for k in range(depth - 1, -1, -1):
+        # processes sending
+        if nb_Q_factors_local > k + 1:
+            I = int(rank)
+            J = int(I + 2**k)
+            rhs = Q_local[:n, :]
+            to_send = Q_local[n:, :]
+            comm.send(to_send, dest=J)
+
+        # processes receiving
+        if nb_Q_factors_local == (k + 1):
+            I = int(rank)
+            J = int(I - 2**k)
+            rhs = np.zeros((n, n), dtype="d")
+            rhs = comm.recv(source=J)
+
+        # processes doing multiplications
+        if nb_Q_factors_local >= k + 1:
+            Q_local = Q_factors[i_local] @ rhs
+            i_local += 1
+    return Q_local, R
