@@ -1,0 +1,6 @@
+Total run time: 358.102
+> Load MNIST data: 1.066
+> Parse data: 1.361
+> Generate A with RBF: 350.491
+> Save matrix A: 0.265
+> Visualize matrix A: 4.919
