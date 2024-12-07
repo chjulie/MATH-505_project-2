@@ -25,10 +25,10 @@ def rand_nystrom_seq(
     try:
         # Try Cholesky
         L = np.linalg.cholesky(B)
-        Z = np.linalg.lstsq(L, C.T, rcond=None)[0]
+        Z = np.linalg.lstsq(L, C.T, rcond=-1)[0]
         Z = Z.T
     except np.linalg.LinAlgError as err:
-        # # Method1: Compute the SVD of B
+        # # Method 1: Compute the SVD of B
         # U, S, _ = np.linalg.svd(B)  # For self-adjoint matrices, U = V
         # sqrt_S = np.sqrt(S)  # Compute square root of the singular values
         # # Construct the self-adjoint square root
@@ -38,15 +38,22 @@ def rand_nystrom_seq(
         # Z = np.linalg.lstsq(L, C.T)[0]
         # Z = Z.T
 
-        # # Method2: Do LDL Factorization
+        # Method 2: Do LDL Factorization
         lu, d, perm = scipy.linalg.ldl(B)
         # Question for you: why is the following line not 100% correct?
         lu = lu @ np.sqrt(np.abs(d))
         # Does this factorization actually work?
         L = lu[perm, :]
         Cperm = C[:, perm]
-        Z = np.linalg.lstsq(L, Cperm.T, rcond=None)[0]
+        Z = np.linalg.lstsq(L, Cperm.T, rcond=-1)[0]
         Z = Z.T
+
+        # Method 3: Use eigen value decomposition:
+        # eigenvalues, eigenvectors = np.linalg.eig(B)
+        # sqrt_eigenvalues = np.sqrt(np.abs(eigenvalues))  # Ensure numerical stability
+        # L = eigenvectors @ np.diag(sqrt_eigenvalues)
+        # Z = np.linalg.lstsq(L, C.T, rcond=-1)[0]
+        # Z = Z.T
 
     Q, R = np.linalg.qr(Z)
     U_tilde, S, V = np.linalg.svd(R)
@@ -128,7 +135,7 @@ def rand_nystrom_parallel(
     # this is only computed in processes of the first column (with rank_cols = 0)
     Z_local = None
     if rank_cols == 0:
-        Z_local = np.linalg.lstsq(L, C_local.T, rcond=None)[0]
+        Z_local = np.linalg.lstsq(L, C_local.T, rcond=-1)[0]
         Z_local = Z_local.T
 
     # 4. Compute the QR factorization Z = QR
@@ -160,19 +167,26 @@ def rand_nystrom_parallel(
     return U_hat_local, Sigma_2
 
 
-def create_sketch_matrix_gaussian_seq(n: int, l: int, seed: int = 10) -> np.ndarray:
-    # TODO: check the numtiplication by 1/sqrt(n)
+def create_sketch_matrix_gaussian_seq(n: int, l: int, seed: int = 0) -> np.ndarray:
     np.random.seed(seed)
     return np.random.normal(loc=0.0, scale=1.0, size=[n, l])
-    # return (1 / n) * np.random.normal(loc=0.0, scale=1.0, size=[n, l])
 
 
-def create_sketch_matrix_SHRT_seq(n: int, l: int, seed=10) -> np.ndarray:
+def create_sketch_matrix_gaussian_parallel(
+    n_local: int, l: int, seed: int
+) -> np.ndarray:
+    np.random.seed(seed)
+    return np.random.normal(loc=0.0, scale=1.0, size=[n_local, l])
+
+
+def create_sketch_matrix_SHRT_seq(n: int, l: int, seed: int = 0) -> np.ndarray:
     np.random.seed(seed)
     # n x n => l x n
     d = np.array([1 if np.random.random() < 0.5 else -1 for _ in range(n)])
     D = np.diag(np.sqrt(n / l) * d)
-    P = random.sample(range(n), l)
+    # random.seed(seed)
+    # R = random.sample(range(n), l)
+    R = np.random.choice(range(n), size=l)
     Omega_T = D
 
     # using scipy
@@ -187,7 +201,33 @@ def create_sketch_matrix_SHRT_seq(n: int, l: int, seed=10) -> np.ndarray:
     # Omega_T = Omega_T.T
     # print(np.allclose(Omega_T_1, Omega_T, rtol=10e-6))
 
-    Omega_T = Omega_T[P, :]
+    Omega_T = Omega_T[R, :]
+    return Omega_T.T
+
+
+def create_sketch_matrix_SHRT_parallel(
+    n_local: int, l: int, seed_local: int, seed_global: int
+) -> np.ndarray:
+    # use local seed to compute diagobal matrices
+    np.random.seed(seed_local)
+    dr = np.array([1 if np.random.random() < 0.5 else -1 for _ in range(n_local)])
+    dl = np.array([1 if np.random.random() < 0.5 else -1 for _ in range(l)])
+    DR = np.diag(np.sqrt(n_local / l) * dr)
+    DL = np.diag(dl)
+
+    # use global seed to select rows
+    random.seed(seed_global)
+    R = random.sample(range(n_local), l)
+    # R = np.random.choice(range(n_local), size=l)
+
+    Omega_T = DR
+    H = hadamard(Omega_T.shape[0]) / np.sqrt(Omega_T.shape[0])  # normalize
+    Omega_T = np.array([H.T @ Omega_T[:, i] for i in range(n_local)])
+    Omega_T = Omega_T.T
+    Omega_T = Omega_T[R, :]
+
+    Omega_T = DL @ Omega_T
+
     return Omega_T.T
 
 

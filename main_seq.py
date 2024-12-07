@@ -7,8 +7,6 @@ from functions import (
     create_sketch_matrix_SHRT_seq,
 )
 from plot import setIndividualTitles, setColNames
-import torch
-from hadamard_transform import hadamard_transform
 
 
 if __name__ == "__main__":

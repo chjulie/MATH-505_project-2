@@ -9,6 +9,8 @@ from functions import (
     create_sketch_matrix_SHRT_seq,
     is_power_of_two,
     rand_nystrom_parallel,
+    create_sketch_matrix_gaussian_parallel,
+    create_sketch_matrix_SHRT_parallel,
 )
 
 if __name__ == "__main__":
@@ -38,33 +40,17 @@ if __name__ == "__main__":
     rank_cols = comm_cols.Get_rank()
     rank_rows = comm_rows.Get_rank()
 
-    # GENERATE THE MATRIX A AND OMEGA
-    # parameters
+    # INITIALIZATION
+    A = None
+    AT = None
+    Omega = None
+
+    # GENERATE THE MATRIX A
+    A_choice = "mnist"
     n = 1024
     n_local = int(n / n_blocks_row)
-    l = 50
-    Rs = [5, 10, 20]
-    ks = [20, 20, 20]  # k < l!!!
-    ps = [0.5, 1, 2]
-    qs = [0.1, 0.25, 1.0]
-    sketching = "gaussian"  # "gaussian", "SHRT"
-    # for 1 matrix testing
-    R = Rs[0]
-    p = ps[2]
-    k = ks[0]
-    q = qs[2]
 
-    # test: TODO: remove
-    # # parameters
-    # n = 8
-    # n_local = int(n / n_blocks_row)
-    # l = 4
-    # Rs = [2, 3, 4]
-    # ks = [2, 3, 4]  # k < l!!!
-    # ps = [0.5, 1, 2]
-    # qs = [0.1, 0.25, 1.0]
-    # sketching = "gaussian"  # "gaussian", "SHRT"
-
+    # check the size of A
     if n_blocks_col * n_local != n:  # Check n is divisible by n_blocks_row
         if rank == 0:
             print(
@@ -76,57 +62,123 @@ if __name__ == "__main__":
             print("n should be a power of 2")
         exit(-1)
 
-    # Initialization
-    A = None
-    AT = None
-    C = None
-    B = None
-    Omega = None
+    if A_choice == "exp_decay" or A_choice == "pol_decay":
+        l = 50
+        Rs = [5, 10, 20]
+        ks = [20, 20, 20]  # k < l!!!
+        ps = [0.5, 1, 2]
+        qs = [0.1, 0.25, 1.0]
+        # for 1 matrix testing
+        R = Rs[0]
+        p = ps[2]
+        k = ks[0]
+        q = qs[2]
 
-    # Generate A
-    if rank == 0:
-        # A = pol_decay(n, R, p)
-        A = exp_decay(n, R, q)
-        arrs = np.split(A, n, axis=1)
-        raveled = [np.ravel(arr) for arr in arrs]
-        AT = np.concatenate(raveled)
-        print("Shape of A: ", A.shape)
-    AT = comm_rows.bcast(AT, root=0)
-    # TODO: is it better to generate the matrix at every processor? or generate at root and broadcast
+        # test: TODO remove
+        # n = 16
+        # n_local = int(n / n_blocks_row)
+        # l = 5
+        # R = 5
+        # p = 0.5
+        # k = 5
+        # q = 0.1
 
-    # Generate Omega
-    if rank == 0:
-        # test if needed TODO: remove
-        # Omega = np.arange(1, n * l + 1, 1, dtype="float")
-        # Omega = np.reshape(Omega, (n, l))
+        # generate at root and then broadcast
+        if rank == 0:
+            if A_choice == "exp_decay":
+                A = exp_decay(n, R, q)
+            else:
+                A = pol_decay(n, R, p)
+            arrs = np.split(A, n, axis=1)
+            raveled = [np.ravel(arr) for arr in arrs]
+            AT = np.concatenate(raveled)
+            print("Shape of A: ", A.shape)
+        AT = comm_rows.bcast(AT, root=0)
+    elif A_choice == "mnist":
+        l = 200
+        k = 1
+
+        if rank == 0:
+            A = np.load("data/mnist_" + str(n) + ".npy")
+            arrs = np.split(A, n, axis=1)
+            raveled = [np.ravel(arr) for arr in arrs]
+            AT = np.concatenate(raveled)
+            print("Shape of A: ", A.shape)
+        AT = comm_rows.bcast(AT, root=0)
+    else:
+        raise (NotImplementedError)
+    # NOTE: TODO tecnnically no need to do transpose because we re using SPD matrices so A = AT
+
+    # GENERATE THE MATRIX OMEGA
+    sketching = "SHRT"  # "gaussian", "SHRT"
+
+    # 1: SEQUENTIALLY
+    # if rank == 0:
+    #     # test if needed TODO: remove
+    #     # Omega = np.arange(1, n * l + 1, 1, dtype=np.float64)
+    #     # Omega = np.reshape(Omega, (n, l))
+    #     if sketching == "gaussian":
+    #         Omega = create_sketch_matrix_gaussian_seq(n, l)
+    #     elif sketching == "SHRT":
+    #         Omega = create_sketch_matrix_SHRT_seq(n, l)
+    #     print("Shape of Omega: ", Omega.shape)
+    # Omega = comm_rows.bcast(Omega, root=0)
+    # Omega = comm_cols.bcast(Omega, root=0)
+
+    # 2. IN PARALLEL
+    # seed is SUPER important!!! (TODO: explain better)
+    seed_global = 0
+    Omega_local = np.empty((n_local, l), dtype=np.float64)
+    OmegaT_local = np.empty((l, n_local), dtype=np.float64)
+    if rank_rows == 0:  # Processors on 1st row of A
         if sketching == "gaussian":
-            Omega = create_sketch_matrix_gaussian_seq(n, l)
+            Omega_local = create_sketch_matrix_gaussian_parallel(
+                n_local, l, seed=rank_cols
+            )
         elif sketching == "SHRT":
-            Omega = create_sketch_matrix_SHRT_seq(n, l)
-        print("Shape of Omega: ", Omega.shape)
-    Omega = comm_rows.bcast(Omega, root=0)
-    Omega = comm_cols.bcast(Omega, root=0)
-    # TODO: generate omega IN PARALLEL! they are currently generated at root and then broadcasted
+            Omega_local = create_sketch_matrix_SHRT_parallel(
+                n_local, l, seed_local=rank_cols, seed_global=seed_global
+            )
+        else:
+            raise (NotImplementedError)
+
+    if rank_cols == 0:  # Processors on 1st col of A
+        if sketching == "gaussian":
+            OmegaT_local = create_sketch_matrix_gaussian_parallel(
+                n_local, l, seed=rank_rows
+            ).T
+        elif sketching == "SHRT":
+            OmegaT_local = create_sketch_matrix_SHRT_parallel(
+                n_local, l, seed_local=rank_rows, seed_global=seed_global
+            ).T
+        else:
+            raise (NotImplementedError)
 
     # DISTRIBUTE THE MATRIX A TO GET A_local
     # Select columns, scatter them and put them in the right order
-    submatrix = np.empty((n_local, n), dtype="float")
-    receiveMat = np.empty((n_local * n), dtype="float")
+    submatrix = np.empty((n_local, n), dtype=np.float64)
+    receiveMat = np.empty((n_local * n), dtype=np.float64)
+
     comm_cols.Scatterv(AT, receiveMat, root=0)
     subArrs = np.split(receiveMat, n_local)
     raveled = [np.ravel(arr, order="F") for arr in subArrs]
     submatrix = np.ravel(raveled, order="F")
     # Scatter the rows
-    A_local = np.empty((n_local, n_local), dtype="float")
+    A_local = np.empty((n_local, n_local), dtype=np.float64)
     comm_rows.Scatterv(submatrix, A_local, root=0)
 
     # DISTRIBUTE OMEGA TO GET Omega_local and OmegaT_local
-    Omega_local = np.empty((n_local, l), dtype="float")
-    comm_cols.Scatterv(Omega, Omega_local, root=0)
+    # 1. SEQUENTIALLY
+    # Omega_local = np.empty((n_local, l), dtype=np.float64)
+    # comm_cols.Scatterv(Omega, Omega_local, root=0)
 
-    OmegaT_local = np.empty((n_local, l), dtype="float")
-    comm_rows.Scatterv(Omega, OmegaT_local, root=0)
-    OmegaT_local = OmegaT_local.T
+    # OmegaT_local = np.empty((n_local, l), dtype=np.float64)
+    # comm_rows.Scatterv(Omega, OmegaT_local, root=0)
+    # OmegaT_local = OmegaT_local.T
+
+    # 2. IN PARALLEL
+    Omega_local = comm_rows.bcast(Omega_local, root=0)  # broadcast to all rows
+    OmegaT_local = comm_cols.bcast(OmegaT_local, root=0)  # broadcast to all columns
 
     # print(
     #     "Original rank: ",
@@ -157,34 +209,21 @@ if __name__ == "__main__":
         n_blocks_row,
     )
 
-    U = np.empty((n, k), dtype="float")
+    U = np.empty((n, k), dtype=np.float64)
 
     comm_rows.Gather(U_local, U, root=0)
 
     if rank == 0:
         err = np.linalg.norm(U @ Sigma_2 @ U.T - A) / np.linalg.norm(A)
-        print("Error: ", err)
+        print("Error in Froebenius norm: ", err)
 
-    # draft, if nystrom returns B and C, evaluate and make sure it's correct
-    # TODO: remove
-    # Print in the root process
-    # if rank == 0:
-    #     if np.allclose(A @ Omega, C, atol=1e-6):  # small tolerance level
-    #         print("C: Success!")
-    #     else:
-    #         print("C: Error!")
-    #     if np.allclose(Omega.T @ A @ Omega, B, atol=1e-6):  # small tolerance level
-    #         print("B: Success!")
-    #     else:
-    #         print("B: Error!")
-
-    # print(
-    #     "Solution for C with MPI: ",
-    #     C,
-    #     "Solution for C with Python: ",
-    #     A @ Omega,
-    #     "Solution for B with MPI: ",
-    #     B,
-    #     "Solution for B with Python: ",
-    #     Omega.T @ A @ Omega,
-    # )
+        err_nuclear = np.linalg.norm(U @ Sigma_2 @ U.T - A, ord="nuc") / np.linalg.norm(
+            A, ord="nuc"
+        )
+        print("Error in nuclear norm", err_nuclear)
+        # print("Nuclear norm of A: ", np.linalg.norm(A, ord="nuc"))
+        # print(
+        #     "Nuclear norm of A_nystrom: ", np.linalg.norm(U @ Sigma_2 @ U.T, ord="nuc")
+        # )
+        # # Sanity check to make sure it is the same as above
+        # print("Sum of diagonal entries nystrom: ", np.sum(np.diag(Sigma_2)))
