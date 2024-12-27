@@ -14,7 +14,6 @@ def nuclear_error(A, A_nyst, k):
 
     return
 
-
 def rand_nystrom_seq(
     A: np.ndarray, Omega: np.ndarray, k: int, return_extra: bool = True
 ) -> np.ndarray:
