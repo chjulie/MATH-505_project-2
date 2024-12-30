@@ -17,12 +17,40 @@ def nuclear_error(A, U, Sigma):
 
     return
 
-def rand_nystrom_seq(
-    A: np.ndarray, Omega: np.ndarray, k: int, return_extra: bool = True
+def rand_nystrom_sequential(
+    A: np.ndarray, 
+    seed: int, 
+    n: int,
+    sketching: str, 
+    k: int, 
+    l: int,
+    return_extra: bool = False
 ) -> np.ndarray:
 
-    C = A @ Omega
-    B = Omega.T @ C
+    np.random.seed(seed)
+
+    if sketching == "SHRT":
+        # C = Ω × A
+        d = np.array([1 if np.random.random() < 0.5 else -1 for _ in range(n)])
+        C = np.multiply(np.sqrt(n / l) * d[:,np.newaxis], A)
+        C = np.array([FWHT(C[:,i]) for i in range(n)]).T
+        R = random.sample(range(n), l)
+        C = C[R,:]
+
+        # B = Ω × C.T
+        B = np.multiply(np.sqrt(n / l) * d[:,np.newaxis], C.T)
+        B = np.array([FWHT(B[:,i]) for i in range(l)]).T
+        B = B[R,:]
+    
+    elif sketching == "gaussian":
+
+        Omega = np.random.normal(loc=0.0, scale=1.0, size=[l,n])
+        C = Omega @ A
+        B = Omega @ C.T
+
+    else:
+        raise (NotImplementedError)
+
 
     try:
         # Try Cholesky
@@ -69,17 +97,17 @@ def rand_nystrom_seq(
     if return_extra:
         S_B = np.linalg.cond(B)
         rank_A = np.linalg.matrix_rank(A)
-        return U_hat_k, Sigma_k @ Sigma_k, U_hat_k.T, S_B, rank_A
+        return U_hat_k, Sigma_k @ Sigma_k, S_B, rank_A
     else:
-        return U_hat_k, Sigma_k @ Sigma_k, U_hat_k.T
+        return U_hat_k, Sigma_k @ Sigma_k
 
 
 def rand_nystrom_parallel(
     A_local: np.ndarray,
     Omega_local: np.ndarray,
     OmegaT_local: np.ndarray,
-    k: int,
     n: int,
+    k: int,
     n_local: int,
     l: int,
     comm,
@@ -236,13 +264,10 @@ def rand_nystrom_parallel_SHRT(
     rank_rows,
     size_cols,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    # TODO: use inplace transformations instead of redefining matrices each time
 
-    
-    # -- implicitly apply omega --
     t1 = time.time()
-    if sketching == "SHRT":
 
+    if sketching == "SHRT":
         # share the seed amongst rows (distribute Ω over the columns)
         seed_local = rank_rows
         np.random.seed(seed_local)

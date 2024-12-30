@@ -1,17 +1,6 @@
- * proc 2: finished program at 16:15:22 
- * proc 3: finished program at 16:15:22 
-Shape of A:  (8, 8)
- B.shape:  (2, 2)
- C.shape:  (2, 4)
- > Cholesky succeeded!
-
- ** COMPUTATION TIMES ** 
-
- - Apply Ω: B = Ω (Ω A).T: 0.0004 s.
- - Cholesky decomposition: B = L L.T: 0.0002 s.
- - Z with substitution: Z = C @ L.T: 0.0002 s.
- - QR factorization: 0.0008 s.
- - Truncated rank-r SVD: 0.0001 s.
-
- * proc 0: finished program at 16:15:22 
- * proc 1: finished program at 16:15:22 
+Shape of A:  (8192, 8192)
+ * l:  200
+ * n:  8192
+ * A:  (8192, 8192)
+Sequential algorihtm done! 
+ * proc 0: finished program at 17:41:56 

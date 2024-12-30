@@ -7,12 +7,9 @@ import time
 
 from data_helpers import pol_decay, exp_decay
 from functions import (
-    create_sketch_matrix_gaussian_seq,
-    create_sketch_matrix_SHRT_seq,
     is_power_of_two,
     rand_nystrom_parallel_SHRT,
-    SFWHT,
-    FWHT,
+    rand_nystrom_sequential,
 )
 
 if __name__ == "__main__":
@@ -53,7 +50,7 @@ if __name__ == "__main__":
 
     # GENERATE THE MATRIX A
     A_choice = "mnist"
-    n = 8#8192
+    n = 8192
     n_local = int(n / n_blocks_row)
 
     # check the size of A
@@ -93,7 +90,7 @@ if __name__ == "__main__":
         AT = comm_rows.bcast(AT, root=0)
 
     elif A_choice == "mnist":
-        l = 2#200
+        l = 200
         k = 1
 
         if rank == 0:
@@ -107,7 +104,29 @@ if __name__ == "__main__":
         raise (NotImplementedError)
     # NOTE: tecnnically no need to do transpose because we re using SPD matrices so A = AT
 
-    # DISTRIBUTE THE MATRIX A TO GET A_local
+
+    # ***********************
+    #  SEQUENTIAL ALGORITHM
+    # ***********************
+
+    U, Sigma_2 = rand_nystrom_sequential(
+        A = A,
+        seed = 42,
+        n = n,
+        sketching = "gaussian", # "gaussian", "SHRT"
+        k = k, # truncation rank
+        l = l,
+        return_extra = False, # if True, returns S_B: condition number of B and rank_A: np.linalg.matrix_rank(A)
+    )
+
+    print("Sequential algorihtm done! ")
+
+    # ***********************
+    #   PARALLEL ALGORITHM 
+    # ***********************
+
+    # 1. Distribute A over processors
+
     # Select columns, scatter them and put them in the right order
     submatrix = np.empty((n_local, n), dtype=np.float64)
     receiveMat = np.empty((n_local * n), dtype=np.float64)
@@ -120,58 +139,40 @@ if __name__ == "__main__":
     A_local = np.empty((n_local, n_local), dtype=np.float64)
     comm_rows.Scatterv(submatrix, A_local, root=0)
 
+    # 2. Call parallel function
 
+    # U_local, Sigma_2 = rand_nystrom_parallel_SHRT(
+    #     A_local = A_local,
+    #     seed_global = 42,
+    #     n = n,
+    #     k = k,
+    #     n_local = n_local,
+    #     l = l, 
+    #     sketching = "SHRT", # "gaussian", "SHRT" 
+    #     comm = comm,
+    #     comm_cols = comm_cols,
+    #     comm_rows = comm_rows,
+    #     rank = rank,
+    #     rank_cols = rank_cols,
+    #     rank_rows = rank_rows,
+    #     size_cols = comm_cols.Get_size(),
+    # )
 
-    # 1. SEQUENTIAL ALGORITHM
+    # print(' Parallel function done! ')
 
-    # 2. PARALLEL ALGORITHM
-    # seed is SUPER important!!! (TODO: explain better)
-    seed_global = 0
+    # # print(f" * Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: U_local: {U_local}\n")
 
-    # NOTE: check with Mathilde
-    # seed_local = rank_rows
-    # if rank_cols == 0:
-    #     seed_local = rank_rows
-
-    # Broadcast the local seed across rows
-    # NOTE: to broadcast across rows i use comm_cols??
-    # seed_local = comm_cols.bcast(seed_local, root=0)
-    # print(f" * Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: seed_local = {seed_local}")
-
-    # NOTE: not necessary
-    # elif rank_rows == 0:
-    #     seed_local = int(time.time()) + 42
-        # seed_local = rank_cols
-
-    U_local, Sigma_2 = rand_nystrom_parallel_SHRT(
-        A_local = A_local,
-        seed_global = seed_global,
-        k = k,
-        n = n,
-        n_local = n_local,
-        l = l, 
-        sketching = "SHRT", # "gaussian", "SHRT" 
-        comm = comm,
-        comm_cols = comm_cols,
-        comm_rows = comm_rows,
-        rank = rank,
-        rank_cols = rank_cols,
-        rank_rows = rank_rows,
-        size_cols = comm_cols.Get_size(),
-    )
-
-    # print(f" * Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: U_local: {U_local}\n")
-
-    U = None
-    if rank == 0:
-        U = np.empty((n, k), dtype=np.float64)
+    # U = None
+    # if rank == 0:
+    #     U = np.empty((n, k), dtype=np.float64)
     
-    if rank_rows == 0:
-        comm_cols.Gather(U_local, U, root=0)
+    # if rank_rows == 0:
+    #     comm_cols.Gather(U_local, U, root=0)
     #     print(f" * Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: U_local: {U_local}\n")
 
 
     # print(f" * Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: U: {U}\n")
+    # print(' Parallel function done! ')
 
     # if rank == 0:
     #     print(f" * U_local.shape:  {U_local.shape}")
