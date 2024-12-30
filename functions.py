@@ -1,6 +1,8 @@
 import numpy as np
 import scipy
 import random
+import math
+import time
 
 # import torch
 # from hadamard_transform import hadamard_transform
@@ -165,6 +167,218 @@ def rand_nystrom_parallel(
     # 7. Output factorization [A_nyst]_k = U_hat Sigma^2 U_hat.T
     return U_hat_local, Sigma_2
 
+def SFWHT(a):
+    """ Fast Walsh–Hadamard Transform of vector a
+    Slowest version (but more memory efficient). 
+
+    Inspired from the Wikipedia implementation: https://en.wikipedia.org/wiki/Fast_Walsh%E2%80%93Hadamard_transform
+    """
+    # assert math.log2(len(a)).is_integer(), "length of a is a power of 2"
+    h = 1
+    while h < len(a):
+        for i in range(0, len(a), h * 2):
+            for j in range(i, i + h):
+                x = a[j]
+                y = a[j + h]
+                a[j] = x + y
+                a[j + h] = x - y
+        h *= 2
+    return a / math.sqrt(len(a))
+
+def FWHT(x):
+    """ Fast Walsh-Hadamard Transform
+    Based on mex function written by Chengbo Li@Rice Uni for his TVAL3 algorithm.
+    His code is according to the K.G. Beauchamp's book -- Applications of Walsh and Related Functions.
+
+    credits: https://github.com/dingluo/fwht
+    """
+    x = x.squeeze()
+    N = x.size
+    G = int(N/2) # Number of Groups
+    M = 2 # Number of Members in Each Group
+
+    # First stage
+    y = np.zeros((int(N/2),2))
+    y[:,0] = x[0::2] + x[1::2]
+    y[:,1] = x[0::2] - x[1::2]
+    x = y.copy()
+    
+    # Second and further stage
+    for nStage in range(2,int(math.log(N,2))+1):
+        y = np.zeros((int(G/2),int(M*2)))
+        G = int(G)
+        M = int(M)
+        y[0:int(G/2),0:int(M*2):4] = x[0:G:2,0:M:2] + x[1:G:2,0:M:2]
+        y[0:int(G/2),1:int(M*2):4] = x[0:G:2,1:M:2] + x[1:G:2,1:M:2]
+        y[0:int(G/2),2:int(M*2):4] = x[0:G:2,0:M:2] - x[1:G:2,0:M:2]
+        y[0:int(G/2),3:int(M*2):4] = x[0:G:2,1:M:2] - x[1:G:2,1:M:2]
+        x = y.copy()
+        G = G/2
+        M = M*2
+    x = y[0,:]
+    x = x.reshape((x.size,1)).squeeze(-1)
+    return x / math.sqrt(N)
+
+def rand_nystrom_parallel_SHRT(
+    A_local: np.ndarray,
+    seed_global: int,
+    k: int,
+    n: int,
+    n_local: int,
+    l: int,
+    sketching: str,
+    comm,
+    comm_cols,
+    comm_rows,
+    rank,
+    rank_cols,
+    rank_rows,
+    size_cols,
+) -> Tuple[np.ndarray, np.ndarray]:
+    # TODO: use inplace transformations instead of redefining matrices each time
+
+    # 1. Compute C = Ω × A
+    # -- implicitly apply omega --
+    t1 = time.time()
+    if sketching == "SHRT":
+
+        # share the seed amongst rows (distribute Ω over the columns)
+        seed_local = rank_rows
+        np.random.seed(seed_local)
+        dr = np.array([1 if np.random.random() < 0.5 else -1 for _ in range(n_local)])
+        dl = np.array([1 if np.random.random() < 0.5 else -1 for _ in range(l)])
+
+        # A = DR @ A
+        C_local = None
+        C_cols = None
+        C_local = np.multiply(np.sqrt(n_local / l) * dr[:, np.newaxis], A_local)
+        # A = H @ A => apply the transform instead of computing the matrix explicitly
+         # !! list comprehension construction swaps axis 0 and 1!!
+        C_local = np.array([FWHT(C_local[:,i]) for i in range(n_local)]).T
+        # A = R @ A
+        # use global seed to select rows
+        random.seed(seed_global)
+        R = random.sample(range(n_local), l)
+        C_local = C_local[R, :]
+
+        # Compute C = DL R H DR A
+        C_local = np.multiply(dl[:, np.newaxis], C_local)
+
+        # print(f" * 1. Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: C_local: {C_local} \n")
+        # column-wise sum-reduce => use comm_cols for communication in between rows??
+        C_cols = comm_rows.allreduce(C_local, op=MPI.SUM)
+
+        # print(f" * 2. Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: C_cols: {C_cols}\n")
+        # 2.1 Compute B = Ω × C.T
+        B = None
+        if rank == 0:
+            B = np.empty((l, l), dtype="float")
+
+        # Apply Ω matrix
+        # share the seed amongst columns (distribute Ω over the rows)
+        seed_local = rank_cols
+        np.random.seed(seed_local)
+        dr = np.array([1 if np.random.random() < 0.5 else -1 for _ in range(n_local)])
+        dl = np.array([1 if np.random.random() < 0.5 else -1 for _ in range(l)])
+
+        B_local = np.multiply(np.sqrt(n_local / l) * dr[:, np.newaxis], C_cols.T)
+        # !! list comprehension construction swaps axis 0 and 1!!
+        B_local = np.array([SFWHT(B_local[:,i]) for i in range(l)]).T # only l columns instead of n_local now
+        B_local = B_local[R, :]
+        B_local = np.multiply(dl[:, np.newaxis], B_local)
+
+        B = comm_cols.allreduce(B_local, op=MPI.SUM)
+
+        # print(f" * Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: B.shape: {B.shape}\n")
+
+    elif sketching == "gaussian":
+        # TODO: implement gaussian
+        # NOTE: use local seed
+
+        raise (NotImplementedError)
+
+    else:
+        raise (NotImplementedError)
+    
+    t2 = time.time()
+    # comm.Reduce(B_local, B, op=MPI.SUM, root=0)
+
+    L = None
+    permute = False
+    perm = None
+    # 2.2 Compute the Cholesky factorization of B: B = LL^T or eigen value decomposition
+    if rank == 0:  # compute only at the root
+        try:  # Try Cholesky
+            L = np.linalg.cholesky(B)
+            print(" > Cholesky succeeded!")
+        except np.linalg.LinAlgError as err:
+            # Do LDL Factorization (TODO: might need to do change)
+            lu, d, perm = scipy.linalg.ldl(B)
+            # Question for you: why is the following line not 100% correct?
+            lu = lu @ np.sqrt(np.abs(d))
+            # Does this factorization actually work?
+            L = lu[perm, :]
+            permute = True
+            print(" > LDL factorization succeeded!")
+
+
+    L = comm_cols.bcast(L, root=0)  # broadcast through columns
+    perm = comm_cols.bcast(perm, root=0)
+    if permute == True and rank_rows == 0:
+        C_cols = C_cols[:, perm]
+
+    t3 = time.time()
+
+    # 3. Compute Z = C @ L.T with substitution
+    # this is only computed in processes of the first row (with rank_rows = 0)
+    Z_local = None
+    if rank_rows == 0:
+        Z_local = np.linalg.lstsq(L, C_cols, rcond=-1)[0]
+        Z_local = Z_local.T
+
+    t4 = time.time()
+
+    # 4. Compute the QR factorization Z = QR
+    R = None
+    Q_local = None
+    if rank_rows == 0:
+        Q_local, R = TSQR(Z_local, l, comm_cols, rank_cols, size_cols)
+
+    t5 = time.time()
+
+    # 5. Compute the truncated rank-k SVD of R: R = U Sigma V.T
+    U_tilde = None
+    S = None
+    Sigma_2 = None
+    if rank == 0:
+        U_tilde, S, V = np.linalg.svd(R)
+        Sigma = np.diag(S)
+        # truncate to get rank k
+        U_tilde = U_tilde[:, :k]
+        Sigma = Sigma[:k, :k]
+        Sigma_2 = Sigma @ Sigma
+
+    U_tilde = comm_cols.bcast(U_tilde, root=0)  # broadcast through rows
+
+    # 6. Compute U_hat = Q @ U
+    U_hat_local = np.empty((A_local.shape[0], k), dtype="float")
+    if rank_rows == 0:
+        U_hat_local = Q_local @ U_tilde
+
+    t6 = time.time()
+
+    # PRINT OUT COMPUTATION TIMES
+    if rank == 0:
+        print(" ** COMPUTATION TIMES ** \n")
+        print(f" - Apply Ω: B = Ω (Ω A).T: {t2-t1:.4f} s.")
+        print(f" - Cholesky decomposition: B = L L.T: {t3-t2:.4f} s.")
+        print(f" - Z with substitution: Z = C @ L.T: {t4-t3:.4f} s.")
+        print(f" - QR factorization: {t5-t4:.4f} s.")
+        print(f" - Trcuncated rank-r SVD: {t6-t5:.4f} s.")
+
+    # 7. Output factorization [A_nyst]_k = U_hat Sigma^2 U_hat.T
+    return U_hat_local, Sigma_2
+
 
 def create_sketch_matrix_gaussian_seq(n: int, l: int, seed: int = 0) -> np.ndarray:
     np.random.seed(seed)
@@ -207,7 +421,7 @@ def create_sketch_matrix_SHRT_seq(n: int, l: int, seed: int = 0) -> np.ndarray:
 def create_sketch_matrix_SHRT_parallel(
     n_local: int, l: int, seed_local: int, seed_global: int
 ) -> np.ndarray:
-    # use local seed to compute diagobal matrices
+    # use local seed to compute diagonal matrices
     np.random.seed(seed_local)
     dr = np.array([1 if np.random.random() < 0.5 else -1 for _ in range(n_local)])
     dl = np.array([1 if np.random.random() < 0.5 else -1 for _ in range(l)])
