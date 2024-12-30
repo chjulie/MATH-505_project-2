@@ -120,12 +120,11 @@ if __name__ == "__main__":
     A_local = np.empty((n_local, n_local), dtype=np.float64)
     comm_rows.Scatterv(submatrix, A_local, root=0)
 
-    # print(f" * Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: A_local: {A_local}")
 
-    # CHOOSE SKETCHING MATRIX OMEGA
-    sketching = "SHRT"  # "gaussian", "SHRT"
 
-    # 2. IN PARALLEL
+    # 1. SEQUENTIAL ALGORITHM
+
+    # 2. PARALLEL ALGORITHM
     # seed is SUPER important!!! (TODO: explain better)
     seed_global = 0
 
@@ -147,11 +146,11 @@ if __name__ == "__main__":
     U_local, Sigma_2 = rand_nystrom_parallel_SHRT(
         A_local = A_local,
         seed_global = seed_global,
-        k = k, # TODO: check where
+        k = k,
         n = n,
         n_local = n_local,
-        l = l, # TODO: check where
-        sketching = sketching, 
+        l = l, 
+        sketching = "SHRT", # "gaussian", "SHRT" 
         comm = comm,
         comm_cols = comm_cols,
         comm_rows = comm_rows,
@@ -161,10 +160,26 @@ if __name__ == "__main__":
         size_cols = comm_cols.Get_size(),
     )
 
+    # print(f" * Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: U_local: {U_local}\n")
+
+    U = None
     if rank == 0:
-        print(f" * U_local.shape:  {U_local.shape}")
-        print(f" * Sigma_2.shape:  {Sigma_2.shape}")
+        U = np.empty((n, k), dtype=np.float64)
+    
+    if rank_rows == 0:
+        comm_cols.Gather(U_local, U, root=0)
+    #     print(f" * Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: U_local: {U_local}\n")
+
+
+    # print(f" * Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: U: {U}\n")
+
+    # if rank == 0:
+    #     print(f" * U_local.shape:  {U_local.shape}")
+    #     print(f" * Sigma_2.shape:  {Sigma_2.shape}")
+
+        # COMPUTE NUCLEAR NORM ERROR
+        # error = nuclear_error(A, U, Sigma)
 
     finish_timestamp = time.localtime(time.time())
     formatted_time = time.strftime("%H:%M:%S", finish_timestamp)
-    print(f" ** proc {rank}: finished program at {formatted_time} ** ")
+    print(f" * proc {rank}: finished program at {formatted_time} ")

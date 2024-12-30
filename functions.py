@@ -11,8 +11,9 @@ from typing import Tuple
 from mpi4py import MPI
 
 
-def nuclear_error(A, A_nyst, k):
+def nuclear_error(A, U, Sigma):
     # TODO compute error of rank-k truncation of the Nystroem approx. using the nuclear norm
+    num = np.linalg.norm(A - ..., ord='nuc')
 
     return
 
@@ -237,7 +238,7 @@ def rand_nystrom_parallel_SHRT(
 ) -> Tuple[np.ndarray, np.ndarray]:
     # TODO: use inplace transformations instead of redefining matrices each time
 
-    # 1. Compute C = Ω × A
+    
     # -- implicitly apply omega --
     t1 = time.time()
     if sketching == "SHRT":
@@ -245,12 +246,17 @@ def rand_nystrom_parallel_SHRT(
         # share the seed amongst rows (distribute Ω over the columns)
         seed_local = rank_rows
         np.random.seed(seed_local)
+
+        C = None
+        if rank_rows == 0:
+            C = np.empty((l, n_local), dtype="float")
+
         dr = np.array([1 if np.random.random() < 0.5 else -1 for _ in range(n_local)])
         dl = np.array([1 if np.random.random() < 0.5 else -1 for _ in range(l)])
 
+        # 1. Compute C = Ω × A
         # A = DR @ A
         C_local = None
-        C_cols = None
         C_local = np.multiply(np.sqrt(n_local / l) * dr[:, np.newaxis], A_local)
         # A = H @ A => apply the transform instead of computing the matrix explicitly
          # !! list comprehension construction swaps axis 0 and 1!!
@@ -266,36 +272,77 @@ def rand_nystrom_parallel_SHRT(
 
         # print(f" * 1. Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: C_local: {C_local} \n")
         # column-wise sum-reduce => use comm_cols for communication in between rows??
-        C_cols = comm_rows.allreduce(C_local, op=MPI.SUM)
+        # C_cols = comm_rows.allreduce(C_local, op=MPI.SUM)
+        comm_rows.Reduce(C_local, C, op=MPI.SUM, root=0)
 
         # print(f" * 2. Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: C_cols: {C_cols}\n")
         # 2.1 Compute B = Ω × C.T
         B = None
-        if rank == 0:
+        if rank_cols == 0:
             B = np.empty((l, l), dtype="float")
 
-        # Apply Ω matrix
-        # share the seed amongst columns (distribute Ω over the rows)
-        seed_local = rank_cols
-        np.random.seed(seed_local)
-        dr = np.array([1 if np.random.random() < 0.5 else -1 for _ in range(n_local)])
-        dl = np.array([1 if np.random.random() < 0.5 else -1 for _ in range(l)])
+        if rank_rows == 0:
+            # Apply Ω matrix
+            # share the seed amongst columns (distribute Ω over the rows)
+            seed_local = rank_cols
+            np.random.seed(seed_local)
+            dr = np.array([1 if np.random.random() < 0.5 else -1 for _ in range(n_local)])
+            dl = np.array([1 if np.random.random() < 0.5 else -1 for _ in range(l)])
 
-        B_local = np.multiply(np.sqrt(n_local / l) * dr[:, np.newaxis], C_cols.T)
-        # !! list comprehension construction swaps axis 0 and 1!!
-        B_local = np.array([SFWHT(B_local[:,i]) for i in range(l)]).T # only l columns instead of n_local now
-        B_local = B_local[R, :]
-        B_local = np.multiply(dl[:, np.newaxis], B_local)
+            B_local = np.multiply(np.sqrt(n_local / l) * dr[:, np.newaxis], C.T)
+            # !! list comprehension construction swaps axis 0 and 1!!
+            B_local = np.array([FWHT(B_local[:,i]) for i in range(l)]).T # only l columns instead of n_local now
+            B_local = B_local[R, :]
+            B_local = np.multiply(dl[:, np.newaxis], B_local)
 
-        B = comm_cols.allreduce(B_local, op=MPI.SUM)
+            # B = comm_cols.allreduce(B_local, op=MPI.SUM)
+            # comm.Reduce(B_local, B, op=MPI.SUM, root=0)
+            comm_cols.Reduce(B_local, B, op=MPI.SUM, root=0)
 
-        # print(f" * Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: B.shape: {B.shape}\n")
+            if rank == 0:
+                print(' B.shape: ', B.shape)
+                print(' C.shape: ', C.shape)
+
+            # print(f" * Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: B: {B}\n")
 
     elif sketching == "gaussian":
-        # TODO: implement gaussian
-        # NOTE: use local seed
 
-        raise (NotImplementedError)
+        np.random.seed(rank_rows)
+
+        C = None
+        if rank_rows == 0:
+            C = np.empty((l, n_local), dtype="float")
+
+        # Generate gaussian matrix
+        C_local = None
+        C_cols = None
+        C_local = np.random.normal(loc=0.0, scale=1.0, size=[l, n_local]) @ A_local
+        # if rank == 0:
+            # print(f" * Ω.shape 1: ", (np.random.normal(loc=0.0, scale=1.0, size=[l, n_local])).shape)
+            # print(f" * A_local.shape: ", A_local.shape)
+
+        # print(f" * Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: C_local: {C_local}\n")
+        # C_cols = comm_rows.allreduce(C_local, op=MPI.SUM)
+        comm_rows.Reduce(C_local, C, op=MPI.SUM, root=0)
+        # print(f" * Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: C: {C}\n")
+
+        B = None
+        if rank_cols == 0:
+            B = np.empty((l, l), dtype="float")
+
+        if rank_rows == 0:
+    
+            # Apply Ω matrix
+            # share the seed amongst columns (distribute Ω over the rows)
+            np.random.seed(rank_cols)
+            # if rank == 0:
+            #     print(f" * Ω.shape 2: ", (np.random.normal(loc=0.0, scale=1.0, size=[l, n_local])).shape)
+            #     print(f" * C_cols^T.shape: ", (C.T).shape)
+
+            B_local = np.random.normal(loc=0.0, scale=1.0, size=[l, n_local]) @ C.T
+            # B = comm_cols.allreduce(B_local, op=MPI.SUM)
+            comm_cols.Reduce(B_local, B, op=MPI.SUM, root=0)
+            # print(f" * Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: B: {B}\n")
 
     else:
         raise (NotImplementedError)
@@ -329,11 +376,11 @@ def rand_nystrom_parallel_SHRT(
 
     t3 = time.time()
 
-    # 3. Compute Z = C @ L.T with substitution
+    # 3. Compute Z = C @ L.-T with substitution
     # this is only computed in processes of the first row (with rank_rows = 0)
     Z_local = None
     if rank_rows == 0:
-        Z_local = np.linalg.lstsq(L, C_cols, rcond=-1)[0]
+        Z_local = np.linalg.lstsq(L, C, rcond=-1)[0]
         Z_local = Z_local.T
 
     t4 = time.time()
@@ -352,29 +399,37 @@ def rand_nystrom_parallel_SHRT(
     Sigma_2 = None
     if rank == 0:
         U_tilde, S, V = np.linalg.svd(R)
-        Sigma = np.diag(S)
+        
         # truncate to get rank k
+        S_2 = S[:k] * S[:k]
+        Sigma_2 = np.diag(S_2)
         U_tilde = U_tilde[:, :k]
-        Sigma = Sigma[:k, :k]
-        Sigma_2 = Sigma @ Sigma
+        
+        # Sigma = np.diag(S)
+        # Sigma = Sigma[:k, :k]
+        # Sigma_2 = Sigma @ Sigma
 
     U_tilde = comm_cols.bcast(U_tilde, root=0)  # broadcast through rows
 
     # 6. Compute U_hat = Q @ U
-    U_hat_local = np.empty((A_local.shape[0], k), dtype="float")
+    # U_hat_local = np.empty((A_local.shape[0], k), dtype="float")
+    U_hat_local = None
     if rank_rows == 0:
+        # print('Q_local: ', Q_local.shape)
+        # print('U_tilde: ', U_tilde.shape)
         U_hat_local = Q_local @ U_tilde
+        # print(f" * Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: U_local: {U_hat_local}\n")
 
     t6 = time.time()
 
     # PRINT OUT COMPUTATION TIMES
     if rank == 0:
-        print(" ** COMPUTATION TIMES ** \n")
+        print("\n ** COMPUTATION TIMES ** \n")
         print(f" - Apply Ω: B = Ω (Ω A).T: {t2-t1:.4f} s.")
         print(f" - Cholesky decomposition: B = L L.T: {t3-t2:.4f} s.")
-        print(f" - Z with substitution: Z = C @ L.T: {t4-t3:.4f} s.")
+        print(f" - Z with substitution: Z = C @ L.-T: {t4-t3:.4f} s.")
         print(f" - QR factorization: {t5-t4:.4f} s.")
-        print(f" - Trcuncated rank-r SVD: {t6-t5:.4f} s.")
+        print(f" - Truncated rank-r SVD: {t6-t5:.4f} s.\n")
 
     # 7. Output factorization [A_nyst]_k = U_hat Sigma^2 U_hat.T
     return U_hat_local, Sigma_2
