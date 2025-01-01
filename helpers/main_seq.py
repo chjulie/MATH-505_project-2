@@ -1,7 +1,11 @@
 import numpy as np
+import sys, os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import matplotlib.pyplot as plt
 from data_helpers import pol_decay, exp_decay
-from functions import (
+from previous_functions import (
     rand_nystrom_seq,
     create_sketch_matrix_gaussian_seq,
     create_sketch_matrix_SHRT_seq,

@@ -2,16 +2,21 @@ import numpy as np
 import matplotlib.pyplot as pyplot
 import pandas as pd
 from mpi4py import MPI
+import sys, os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 
 from data_helpers import pol_decay, exp_decay
-from functions import (
+from previous_functions import (
     create_sketch_matrix_gaussian_seq,
     create_sketch_matrix_SHRT_seq,
     is_power_of_two,
-    rand_nystrom_parallel,
+    rand_nystrom_parallel_old,
     create_sketch_matrix_gaussian_parallel,
     create_sketch_matrix_SHRT_parallel,
 )
+
 
 if __name__ == "__main__":
 
@@ -46,7 +51,7 @@ if __name__ == "__main__":
     Omega = None
 
     # GENERATE THE MATRIX A
-    A_choice = "mnist"
+    A_choice = "exp_decay"
     n = 1024
     n_local = int(n / n_blocks_row)
 
@@ -63,15 +68,15 @@ if __name__ == "__main__":
         exit(-1)
 
     if A_choice == "exp_decay" or A_choice == "pol_decay":
-        l = 50
+        l = 200
         Rs = [5, 10, 20]
         ks = [20, 20, 20]  # k < l!!!
         ps = [0.5, 1, 2]
         qs = [0.1, 0.25, 1.0]
         # for 1 matrix testing
-        R = Rs[0]
+        R = 10
         p = ps[2]
-        k = ks[0]
+        k = 100
         q = qs[2]
 
         # test: TODO remove
@@ -89,25 +94,20 @@ if __name__ == "__main__":
                 A = exp_decay(n, R, q)
             else:
                 A = pol_decay(n, R, p)
-            arrs = np.split(A, n, axis=1)
-            raveled = [np.ravel(arr) for arr in arrs]
-            AT = np.concatenate(raveled)
+            AT = A
             print("Shape of A: ", A.shape)
         AT = comm_rows.bcast(AT, root=0)
     elif A_choice == "mnist":
         l = 200
-        k = 1
+        k = 20
 
         if rank == 0:
             A = np.load("data/mnist_" + str(n) + ".npy")
-            arrs = np.split(A, n, axis=1)
-            raveled = [np.ravel(arr) for arr in arrs]
-            AT = np.concatenate(raveled)
+            AT = A
             print("Shape of A: ", A.shape)
         AT = comm_rows.bcast(AT, root=0)
     else:
         raise (NotImplementedError)
-    # NOTE: TODO tecnnically no need to do transpose because we re using SPD matrices so A = AT
 
     # GENERATE THE MATRIX OMEGA
     sketching = "SHRT"  # "gaussian", "SHRT"
@@ -126,7 +126,7 @@ if __name__ == "__main__":
     # Omega = comm_cols.bcast(Omega, root=0)
 
     # 2. IN PARALLEL
-    # seed is SUPER important!!! (TODO: explain better)
+    # seed is SUPER important!!!
     seed_global = 0
     Omega_local = np.empty((n_local, l), dtype=np.float64)
     OmegaT_local = np.empty((l, n_local), dtype=np.float64)
@@ -192,7 +192,7 @@ if __name__ == "__main__":
     #     "\n",
     # )
 
-    U_local, Sigma_2 = rand_nystrom_parallel(
+    U_local, Sigma_2 = rand_nystrom_parallel_old(
         A_local,
         Omega_local,
         OmegaT_local,

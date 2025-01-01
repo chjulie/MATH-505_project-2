@@ -8,4 +8,4 @@
 #SBATCH --output=./results/results_parallel.txt
 
 module load gcc openmpi python py-mpi4py
-srun python main_parallel_JULIE.py
+srun python main_nystrom.py

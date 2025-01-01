@@ -10,9 +10,8 @@ from data_helpers import (
 )
 
 from functions import (
-    create_sketch_matrix_gaussian_seq, 
+    create_sketch_matrix_gaussian_seq,
     create_sketch_matrix_SHRT_seq,
-    rand_nystrom_seq,
 )
 
 # from functions import nuclear_error, random_nystroem, p_random_nystroem
@@ -23,7 +22,7 @@ if __name__ == "__main__":
     # 1.1 Synthetic dataset (polynomial and exponential decay matrices)
     # (ex 9)
 
-    n = 2**13 # matrix dimension
+    n = 2**13  # matrix dimension
     Rs = [5, 10, 20]  # effective rank
     ps = [0.5, 1, 2]  # controls the rate of polynomial decay
     qs = [0.1, 0.25, 1.0]  # controls the rate of exponential decay
@@ -40,54 +39,63 @@ if __name__ == "__main__":
     # Perso j'ai testé n=8, n=256 et n=int(2**13).
     # run avec method="vectorized" pour les 2 premier et "sequential" si tu as plus de place
     FILE_NAME = "data/mnist.scale"
-    # A3 = get_MNIST_data(FILE_NAME, n=1024, c=100, method="vectorized")
-    # print("Is SPD: ", np.all(np.linalg.eigvals(A3) > 0))
+    print("Getting the data...")
+    A3 = get_MNIST_data(FILE_NAME, n=2**11, c=100, method="sequential")
+    print("Is SPD: ", np.all(np.linalg.eigvals(A3) > 0))
 
-    # A3 = np.load("data/mnist_" + str(1024) + ".npy")
-    # print("Is SPD: ", np.all(np.linalg.eigvals(A3) > 0))
-    # print(np.linalg.eigvals(A3)[:100])
-    # plt.plot(range(1024), np.linalg.eigvals(A3))
+    # A3 = np.load("data/mnist_" + str(2**13) + ".npy")
+    # # print(np.linalg.eigvals(A3)[:100])
+    # plt.plot(range(2**13), np.linalg.eigvals(A3))
     # plt.show()
+
+    exit(0)
 
     # 2. Investigation of numerical stability of randomized Nystroem
 
     # 4. Sequential runtimes of of randomized Nystroem
     # for each sketch matrices, for each matrix A1, A2, A3
 
-    experiment = {"A": "A1: pol_decay", "Omega": "Omega1: gaussian"}
-    n = 2^4
-    k = 1000 # fix it, the truncation size should not change the sequential runtime 
-    runtimes = np.zeros(5)
-    l = [20, 200, 2000] # 20: larger than rank of A, 2000: same as paper (slide 32 week 8), incrase number of points if needed 
+    # experiment = {"A": "A1: pol_decay", "Omega": "Omega1: gaussian"}
+    # n = 2 ^ 4
+    # k = 1000  # fix it, the truncation size should not change the sequential runtime
+    # runtimes = np.zeros(5)
+    # l = [
+    #     20,
+    #     200,
+    #     2000,
+    # ]  # 20: larger than rank of A, 2000: same as paper (slide 32 week 8), incrase number of points if needed
 
-    for i in range(5):
-        seed = time.time()
+    # for i in range(5):
+    #     seed = time.time()
 
-        if experiment["A"] == "A1: pol_decay":
-            A = pol_decay(n, Rs[0], ps[0])
-        elif experiment["A"] == "A2: exp_decay":
-            A = exp_decay(n, Rs[0], qs[0])
-        elif experiment["A"] == "A3: MNIST":
-            A = np.load("data/mnist_" + str(n) + ".npy")
-        else:
-            print("Invalid test matrix name")
+    #     if experiment["A"] == "A1: pol_decay":
+    #         A = pol_decay(n, Rs[0], ps[0])
+    #     elif experiment["A"] == "A2: exp_decay":
+    #         A = exp_decay(n, Rs[0], qs[0])
+    #     elif experiment["A"] == "A3: MNIST":
+    #         A = np.load("data/mnist_" + str(n) + ".npy")
+    #     else:
+    #         print("Invalid test matrix name")
 
-        if experiment["Omega"] == "Omega1: gaussian":
-            Omega = create_sketch_matrix_gaussian_parallel(n, l, seed)
-        elif experiment["Omega"] == "Omega2: SHRT":
-            Omega = create_sketch_matrix_SHRT_seq(n, l, seed)
-        else:
-            print("Invalide sketch matrix name")
+    #     if experiment["Omega"] == "Omega1: gaussian":
+    #         Omega = create_sketch_matrix_gaussian_parallel(n, l, seed)
+    #     elif experiment["Omega"] == "Omega2: SHRT":
+    #         Omega = create_sketch_matrix_SHRT_seq(n, l, seed)
+    #     else:
+    #         print("Invalide sketch matrix name")
 
-        start_time = time.time()
+    #     start_time = time.time()
 
-        U_hat_k, Sigma_squared, U_hat_k_trans, S_B, rank_A = rand_nystrom_seq(A, Omega, k=k, return_extra=True)
-        
-        end_time = time.time()
+    #     U_hat_k, Sigma_squared, U_hat_k_trans, S_B, rank_A = rand_nystrom_seq(
+    #         A, Omega, k=k, return_extra=True
+    #     )
 
-        runtimes[i] = end_time - start_time
+    #     end_time = time.time()
 
-    print(f"Runtimes: {runtimes} \n   Average: {np.mean(runtimes):.4e} \n   Variance: {np.var(runtimes):.4e}")
+    #     runtimes[i] = end_time - start_time
 
+    # print(
+    #     f"Runtimes: {runtimes} \n   Average: {np.mean(runtimes):.4e} \n   Variance: {np.var(runtimes):.4e}"
+    # )
 
     # 5. Parallel performance of randomized Nystroem
