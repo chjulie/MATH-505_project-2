@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+plt.style.use('ggplot')
 
 from data_helpers import pol_decay, exp_decay
 from functions import (
@@ -10,7 +11,7 @@ from functions import (
 )
 
 
-def plot_errors(errors_all, method_name, ks, ls, matrix_index):
+def plot_errors(errors_all, method_name, results_folder, ks, ls, matrix_index):
     """
     Generate a plot for errors as a function of k for each matrix and method.
 
@@ -33,7 +34,7 @@ def plot_errors(errors_all, method_name, ks, ls, matrix_index):
     plt.ylabel("Nuclear Norm Error")
     plt.legend()
     plt.grid(True)
-    plt.savefig("results/" + str(matrix_index) + "_" + method_name + ".png")
+    plt.savefig(results_folder + "/" + str(matrix_index) + "_" + method_name + ".png")
 
 
 if __name__ == "__main__":
@@ -42,7 +43,7 @@ if __name__ == "__main__":
     n = 1024
     As = []
 
-    # Parameters for the polynormial and exponential matrices
+    # Parameters for the polynomial and exponential matrices
     R = 10
     ps = [0.5, 1, 2]
     qs = [0.1, 0.25, 1.0]
@@ -81,6 +82,7 @@ if __name__ == "__main__":
                     k=k,
                     l=l,
                     return_extra=False,
+                    return_runtimes=False,
                     print_computation_times=False,
                 )
                 errors_gaussian_tmp.append(nuclear_error(A, U, Sigma_2))
@@ -94,6 +96,7 @@ if __name__ == "__main__":
                     k=k,
                     l=l,
                     return_extra=False,
+                    return_runtimes=False,
                     print_computation_times=False,
                 )
                 errors_SHRT_tmp.append(nuclear_error(A, U, Sigma_2))
@@ -108,9 +111,10 @@ if __name__ == "__main__":
     # print("SHRT sketching matrix: ", errors_SHRT_all)
 
     # Plot for each matrix and method
+    results_folder = "results/numerical_stability_sequential"
     for i in range(len(As)):
         # Gaussian method
-        plot_errors(errors_gaussian_all, "Gaussian", ks, ls, i)
+        plot_errors(errors_gaussian_all, "Gaussian", results_folder, ks, ls, i)
 
         # SHRT method
-        plot_errors(errors_SHRT_all, "SHRT", ks, ls, i)
+        plot_errors(errors_SHRT_all, "SHRT", results_folder, ks, ls, i)

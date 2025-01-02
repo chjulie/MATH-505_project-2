@@ -1,0 +1,79 @@
+Rank: 56, Size: 64
+Rank: 57, Size: 64
+Rank: 58, Size: 64
+Rank: 59, Size: 64
+Rank: 60, Size: 64
+Rank: 61, Size: 64
+Rank: 63, Size: 64
+Rank: 62, Size: 64
+Rank: 40, Size: 64
+Rank: 48, Size: 64
+Rank: 43, Size: 64
+Rank: 44, Size: 64
+Rank: 45, Size: 64
+Rank: 47, Size: 64
+Rank: 42, Size: 64
+Rank: 46, Size: 64
+Rank: 51, Size: 64
+Rank: 52, Size: 64
+Rank: 53, Size: 64
+Rank: 55, Size: 64
+Rank: 50, Size: 64
+Rank: 54, Size: 64
+Rank: 41, Size: 64
+Rank: 49, Size: 64
+Rank: 24, Size: 64
+Rank: 27, Size: 64
+Rank: 25, Size: 64
+Rank: 26, Size: 64
+Rank: 28, Size: 64
+Rank: 30, Size: 64
+Rank: 31, Size: 64
+Rank: 29, Size: 64
+Rank: 8, Size: 64
+Rank: 9, Size: 64
+Rank: 10, Size: 64
+Rank: 11, Size: 64
+Rank: 17, Size: 64
+Rank: 32, Size: 64
+Rank: 19, Size: 64
+Rank: 16, Size: 64
+Rank: 18, Size: 64
+Rank: 12, Size: 64
+Rank: 13, Size: 64
+Rank: 14, Size: 64
+Rank: 33, Size: 64
+Rank: 15, Size: 64
+Rank: 34, Size: 64
+Rank: 35, Size: 64
+Rank: 22, Size: 64
+Rank: 20, Size: 64
+Rank: 37, Size: 64
+Rank: 21, Size: 64
+Rank: 23, Size: 64
+Rank: 38, Size: 64
+Rank: 36, Size: 64
+Rank: 39, Size: 64
+Rank: 1, Size: 64
+Rank: 2, Size: 64
+Rank: 3, Size: 64
+Rank: 4, Size: 64
+Rank: 5, Size: 64
+Rank: 6, Size: 64
+Rank: 7, Size: 64
+Rank: 0, Size: 64
+ > n = 8192
+Shape of A:  (8192, 8192)
+  > gaussian sketching
+   > it 1 done
+   > it 2 done
+   > it 3 done
+   > it 4 done
+   > it 5 done
+  > SHRT sketching matrix
+   > it 1 done
+   > it 2 done
+   > it 3 done
+   > it 4 done
+   > it 5 done
+ > Program finished successfully!

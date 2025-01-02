@@ -1,0 +1,15 @@
+ > n = 8192
+Shape of A:  (8192, 8192)
+  > gaussian sketching
+   > it 1 done
+   > it 2 done
+   > it 3 done
+   > it 4 done
+   > it 5 done
+  > SHRT sketching matrix
+   > it 1 done
+   > it 2 done
+   > it 3 done
+   > it 4 done
+   > it 5 done
+ > Program finished successfully!

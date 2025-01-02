@@ -8,4 +8,4 @@
 #SBATCH --output=./results/results.txt
 
 module load gcc openmpi python py-mpi4py
-srun python main.py
+srun python runtimes_analysis.py

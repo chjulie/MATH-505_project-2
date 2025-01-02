@@ -23,6 +23,7 @@ def rand_nystrom_sequential(
     k: int,
     l: int,
     return_extra: bool = False,
+    return_runtimes: bool = False,
     print_computation_times: bool = True,
 ) -> np.ndarray:
 
@@ -53,6 +54,7 @@ def rand_nystrom_sequential(
 
     else:
         raise (NotImplementedError)
+
     t2 = time.time()
 
     try:
@@ -87,20 +89,34 @@ def rand_nystrom_sequential(
     t6 = time.time()
 
     # PRINT OUT COMPUTATION TIMES
+    runtimes = [
+        t2-t1, 
+        t3-t2, 
+        t4-t3, 
+        t5-t4, 
+        t6-t5
+    ]
+
     if print_computation_times:
         print("\n ** COMPUTATION TIMES ** \n")
-        print(f" - Apply Ω: B = Ω (Ω A).T: {t2-t1:.4f} s.")
-        print(f" - Cholesky decomposition: B = L L.T: {t3-t2:.4f} s.")
-        print(f" - Z with substitution: Z = C @ L.-T: {t4-t3:.4f} s.")
-        print(f" - QR factorization: {t5-t4:.4f} s.")
-        print(f" - Truncated rank-r SVD: {t6-t5:.4f} s.\n")
+        print(f" - Apply Ω: B = Ω (Ω A).T: {runtimes[0]:.4f} s.")
+        print(f" - Cholesky decomposition: B = L L.T: {runtimes[1]:.4f} s.")
+        print(f" - Z with substitution: Z = C @ L.-T: {runtimes[2]:.4f} s.")
+        print(f" - QR factorization: {runtimes[3]:.4f} s.")
+        print(f" - Truncated rank-r SVD: {runtimes[4]:.4f} s.\n")
 
     if return_extra:
         S_B = np.linalg.cond(B)
         rank_A = np.linalg.matrix_rank(A)
-        return U_hat_k, Sigma_k @ Sigma_k, S_B, rank_A
+        if return_runtimes:
+            return U_hat_k, Sigma_k @ Sigma_k, S_B, rank_A, runtimes
+        else:
+            return U_hat_k, Sigma_k @ Sigma_k, S_B, rank_A
     else:
-        return U_hat_k, Sigma_k @ Sigma_k
+        if return_runtimes:
+            return U_hat_k, Sigma_k @ Sigma_k, runtimes
+        else:
+            return U_hat_k, Sigma_k @ Sigma_k
 
 
 def SFWHT(a: np.ndarray) -> np.ndarray:
@@ -173,6 +189,7 @@ def rand_nystrom_parallel(
     rank_rows: int,
     size_cols: int,
     print_computation_times: bool = True,
+    return_runtimes: bool = False
 ) -> Tuple[np.ndarray, np.ndarray]:
 
     t1 = time.time()
@@ -277,14 +294,14 @@ def rand_nystrom_parallel(
     if rank == 0:  # compute only at the root
         try:  # Try Cholesky
             L = np.linalg.cholesky(B)
-            print(" > Cholesky succeeded!")
+            # print(" > Cholesky succeeded!")
         except np.linalg.LinAlgError as err:
             # Do LDL Factorization
             lu, d, perm = scipy.linalg.ldl(B)
             lu = lu @ np.sqrt(np.abs(d))
             L = lu[perm, :]
             permute = True
-            print(" > LDL factorization succeeded!")
+            # print(" > LDL factorization succeeded!")
 
     L = comm_cols.bcast(L, root=0)  # Broadcast through columns
     perm = comm_cols.bcast(perm, root=0)
@@ -334,16 +351,27 @@ def rand_nystrom_parallel(
     t6 = time.time()
 
     # PRINT OUT COMPUTATION TIMES
+    runtimes = [
+        t2-t1, 
+        t3-t2, 
+        t4-t3, 
+        t5-t4, 
+        t6-t5
+    ]
+
     if rank == 0 and print_computation_times:
         print("\n ** COMPUTATION TIMES ** \n")
-        print(f" - Apply Ω: B = Ω (Ω A).T: {t2-t1:.4f} s.")
-        print(f" - Cholesky decomposition: B = L L.T: {t3-t2:.4f} s.")
-        print(f" - Z with substitution: Z = C @ L.-T: {t4-t3:.4f} s.")
-        print(f" - QR factorization: {t5-t4:.4f} s.")
-        print(f" - Truncated rank-r SVD: {t6-t5:.4f} s.\n")
+        print(f" - Apply Ω: B = Ω (Ω A).T: {runtimes[0]:.4f} s.")
+        print(f" - Cholesky decomposition: B = L L.T: {runtimes[1]:.4f} s.")
+        print(f" - Z with substitution: Z = C @ L.-T: {runtimes[2]:.4f} s.")
+        print(f" - QR factorization: {runtimes[3]:.4f} s.")
+        print(f" - Truncated rank-r SVD: {runtimes[4]:.4f} s.\n")
 
     # 7. Output factorization [A_nyst]_k = U_hat Sigma^2 U_hat.T
-    return U_hat_local, Sigma_2
+    if return_runtimes:
+        return U_hat_local, Sigma_2, runtimes
+    else:
+        return U_hat_local, Sigma_2
 
 
 def is_power_of_two(n: int) -> bool:
