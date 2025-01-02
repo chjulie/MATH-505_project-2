@@ -1,9 +1,194 @@
-/var/spool/slurmd/job4159251/slurm_script: line 12: usr/bin/python/activate: No such file or directory
-/ssoft/spack/syrah/v2/opt/spack/linux-rhel9-skylake_avx512/gcc-11.3.0/python-3.10.4-4cxk6upcdoypsygwvcoa7e5vfj4amry2/bin/python
-1.8.1
-/ssoft/spack/syrah/v2/opt/spack/linux-rhel9-skylake_avx512/gcc-11.3.0/python-3.10.4-4cxk6upcdoypsygwvcoa7e5vfj4amry2/bin/python
-1.8.1
-/ssoft/spack/syrah/v2/opt/spack/linux-rhel9-skylake_avx512/gcc-11.3.0/python-3.10.4-4cxk6upcdoypsygwvcoa7e5vfj4amry2/bin/python
-1.8.1
-/ssoft/spack/syrah/v2/opt/spack/linux-rhel9-skylake_avx512/gcc-11.3.0/python-3.10.4-4cxk6upcdoypsygwvcoa7e5vfj4amry2/bin/python
-1.8.1
+ * proc 15: finished program at 17:21:52 
+ * proc 5: finished program at 17:21:52 
+ * proc 8: finished program at 17:21:52 
+ * proc 12: finished program at 17:21:52 
+ * proc 6: finished program at 17:21:52 
+ * proc 9: finished program at 17:21:52 
+ * proc 13: finished program at 17:21:52 
+ * proc 7: finished program at 17:21:52 
+ * proc 10: finished program at 17:21:52 
+ * proc 14: finished program at 17:21:52 
+ * proc 4: finished program at 17:21:52 
+ * proc 11: finished program at 17:21:52 
+ * proc 1: finished program at 17:21:52 
+ * proc 2: finished program at 17:21:52 
+ * proc 3: finished program at 17:21:52 
+ > MPI initialized
+ > Matrices initialized
+Matrix 0
+ > l = 150
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+ > l = 200
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+ > l = 250
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+ > l = 500
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+Matrix 1
+ > l = 150
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+ > l = 200
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+ > l = 250
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+ > l = 500
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+Matrix 2
+ > l = 150
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+ > l = 200
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+ > l = 250
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+ > l = 500
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+Matrix 3
+ > l = 150
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+ > l = 200
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+ > l = 250
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+ > l = 500
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+Matrix 4
+ > l = 150
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+ > l = 200
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+ > l = 250
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+ > l = 500
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+Matrix 5
+ > l = 150
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+ > l = 200
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+ > l = 250
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+ > l = 500
+  > k = 5
+  > k = 10
+  > k = 25
+  > k = 50
+  > k = 100
+  > k = 150
+ > Computations done!
+ > Program finished successfully!
+ * proc 0: finished program at 17:22:00 

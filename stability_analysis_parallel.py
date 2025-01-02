@@ -177,7 +177,7 @@ if __name__ == "__main__":
                     comm_cols.Gather(U_local, U, root=0)
 
                 if rank == 0:
-                    errors_gaussian_tmp.append(nuclear_error(A, U, Sigma_2))
+                    errors_SHRT_tmp.append(nuclear_error(A, U, Sigma_2))
 
             if rank == 0:
                 errors_gaussian.append(errors_gaussian_tmp)

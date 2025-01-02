@@ -296,11 +296,18 @@ def rand_nystrom_parallel(
             L = np.linalg.cholesky(B)
             # print(" > Cholesky succeeded!")
         except np.linalg.LinAlgError as err:
+            U, S, _ = np.linalg.svd(B)
+            sqrt_S = np.sqrt(S)  # Compute square root of the singular values
+            # Construct the self-adjoint square root
+            sqrt_S_matrix = np.diag(sqrt_S)
+            L = U @ sqrt_S_matrix
+            # L = lu[perm, :]
+        
             # Do LDL Factorization
-            lu, d, perm = scipy.linalg.ldl(B)
-            lu = lu @ np.sqrt(np.abs(d))
-            L = lu[perm, :]
-            permute = True
+            # lu, d, perm = scipy.linalg.ldl(B)
+            # lu = lu @ np.sqrt(np.abs(d))
+            # L = lu[perm, :]
+            # permute = True
             # print(" > LDL factorization succeeded!")
 
     L = comm_cols.bcast(L, root=0)  # Broadcast through columns
