@@ -2,7 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpi4py import MPI
 import time
-import scipy
 
 from data_helpers import pol_decay, exp_decay
 from functions import (
@@ -14,19 +13,10 @@ from stability_analysis_sequential import plot_errors
 
 if __name__ == "__main__":
 
-
     # INITIALIZE MPI WORLD
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
-
-    # comm.Barrier()
-
-    if rank == 0:
-        print(scipy.__version__)
-        print(f" *** {rank} *** ")
-
-    print(f"Rank: {rank}, Size: {size}")
 
     n_blocks_row = int(np.sqrt(size))
     n_blocks_col = int(np.sqrt(size))
@@ -52,7 +42,7 @@ if __name__ == "__main__":
         print(" > MPI initialized")
 
     # INITIALIZATION OF MATRICES
-    n = 1024
+    n = 2048
     n_local = int(n / n_blocks_row)
     As = []
 
@@ -66,11 +56,17 @@ if __name__ == "__main__":
     ks = [5, 10, 25, 50, 100, 150]
 
     # Generate the matrices
-    if rank == 0:
-        for p in ps:
+    for p in ps:
+        if rank == 0:
             As.append(pol_decay(n, R, p))
-        for q in qs:
+        else:
+            As.append(None)
+    for q in qs:
+        if rank == 0:
             As.append(exp_decay(n, R, q))
+        else:
+            As.append(None)
+
 
     if rank == 0:
         print(" > Matrices initialized")
@@ -98,15 +94,13 @@ if __name__ == "__main__":
                 print("n should be a power of 2")
             exit(-1)
 
-        # Initialization
+        AT = None
+
         if rank == 0:
-            AT = A 
-        else:
-            A = None
-            AT = None
-        
+            AT = A
+
         AT = comm_rows.bcast(AT, root=0)    
-        
+
         submatrix = np.empty((n_local, n), dtype=np.float64)
         receiveMat = np.empty((n_local * n), dtype=np.float64)
 
@@ -145,7 +139,8 @@ if __name__ == "__main__":
                     rank_cols=rank_cols,
                     rank_rows=rank_rows,
                     size_cols=comm_cols.Get_size(),
-                    print_computation_times=False
+                    print_computation_times=False,
+                    return_runtimes=False
                 )
                 U = None
                 if rank == 0:
@@ -172,7 +167,8 @@ if __name__ == "__main__":
                     rank_cols=rank_cols,
                     rank_rows=rank_rows,
                     size_cols=comm_cols.Get_size(),
-                    print_computation_times=False
+                    print_computation_times=False,
+                    return_runtimes=False,
                 )
                 U = None
                 if rank == 0:
@@ -193,6 +189,7 @@ if __name__ == "__main__":
 
     if rank == 0:
         print(f" > Computations done!")
+
     # Plot for each matrix and method
     results_folder = "results/numerical_stability_parallel_64"
     if rank == 0:
@@ -204,3 +201,7 @@ if __name__ == "__main__":
             plot_errors(errors_SHRT_all, "SHRT", results_folder, ks, ls, i)
 
         print(" > Program finished successfully!")
+
+    finish_timestamp = time.localtime(time.time())
+    formatted_time = time.strftime("%H:%M:%S", finish_timestamp)
+    print(f" * proc {rank}: finished program at {formatted_time} ")

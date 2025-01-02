@@ -109,7 +109,7 @@ def get_MNIST_data(filename: str, n: int, c: float, method: str) -> np.array:
     ax.set_title(
         f"Visualization of matrix A generated with RBF\nfrom the MNIST dataset, N = {n}"
     )
-    plt.savefig(f"results/A_MNIST_{n}_visualization.png", bbox_inches="tight")
+    plt.savefig(f"results/matrix_visualization/A_MNIST_{n}_visualization.png", bbox_inches="tight")
 
     final_time = time.time()
 

@@ -2,7 +2,7 @@ import numpy as np
 import os
 import json
 import matplotlib.pyplot as plt
-plt.style.use("ggplot")
+# plt.style.use("ggplot")
 
 if __name__ == "__main__":
     RESULTS_FOLDER = 'results'
@@ -23,6 +23,8 @@ if __name__ == "__main__":
                     runtimes_SHRT.append(entry["runtimes_SHRT"])
 
     labels = ['Sketching', 'Cholesky', 'Z with substitution', 'QR', 'Rank-k truncation']
+    # colors = ['#621708', '#720026', '#ce4257', '#ff7f51', '#f5cb5c']
+    colors = ["#0b3954","#087e8b","#bfd7ea","#ff5a5f","#c81d25"]
     
     # PLOT RUNTIMES_GAUSSIAN
     fig, ax = plt.subplots()
@@ -31,7 +33,7 @@ if __name__ == "__main__":
 
     for i in range(len(labels)):
         values = [r[i] for r in runtimes_gaussian]
-        ax.bar(x, values, bottom=bottom, label=labels[i])
+        ax.bar(x, values, bottom=bottom, label=labels[i], color=colors[i])
         bottom = [b + v for b, v in zip(bottom, values)]
 
     ax.set_xlabel("Number of Processors")
@@ -50,7 +52,7 @@ if __name__ == "__main__":
 
     for i in range(len(labels)):
         values = [r[i] for r in runtimes_SHRT]
-        ax.bar(x, values, bottom=bottom, label=labels[i])
+        ax.bar(x, values, bottom=bottom, label=labels[i], color=colors[i])
         bottom = [b + v for b, v in zip(bottom, values)]
 
     ax.set_xlabel("Number of Processors")
@@ -73,19 +75,21 @@ if __name__ == "__main__":
     fig, ax1 = plt.subplots()
     ax2 = ax1.twinx()
 
-    ax1.plot(n_procs, speed_up_gaussian, marker='D', label="Speed-up")
-    ax2.plot(n_procs, efficiency_gaussian, marker='D', label="Efficiency")
+    ax1.plot(n_procs, speed_up_gaussian, '--', marker='D', label="Speed-up", color=colors[0])
+    ax2.plot(n_procs, efficiency_gaussian, '--', marker='D', label="Efficiency", color=colors[1])
+
+    ax1.tick_params(axis='y', labelcolor=colors[0])
+    ax2.tick_params(axis='y', labelcolor=colors[1])
 
     ax1.set_xlabel("Number of Processors (n_proc)")
-    ax1.set_ylabel("Speed-up")
-    ax2.set_ylabel("Efficiency")
+    ax1.set_ylabel("Speed-up", color=colors[0])
+    ax2.set_ylabel("Efficiency", color=colors[1])
     ax1.set_title("Speed-up and Efficiency for Gaussian Runtimes")
     ax1.grid()
 
     fig.tight_layout()
     plt.savefig('results/runtimes/efficiency_gaussian.png', bbox_inches='tight')
     plt.savefig('results/runtimes/efficiency_gaussian.svg', format='svg', bbox_inches='tight')
-
 
     # PLOT EFFICIENCY + SPEEDUP FOR RUNTIMES_SHRT
 
@@ -97,12 +101,15 @@ if __name__ == "__main__":
     fig, ax1 = plt.subplots()
     ax2 = ax1.twinx()
 
-    ax1.plot(n_procs, speed_up_SHRT, marker='D', label="Speed-up")
-    ax2.plot(n_procs, efficiency_SHRT, marker='D', label="Efficiency")
+    ax1.plot(n_procs, speed_up_SHRT, '--', marker='D', label="Speed-up", color=colors[0])
+    ax2.plot(n_procs, efficiency_SHRT,'--', marker='D', label="Efficiency", color=colors[1])
+
+    ax1.tick_params(axis='y', labelcolor=colors[0])
+    ax2.tick_params(axis='y', labelcolor=colors[1])
 
     ax1.set_xlabel("Number of Processors (n_proc)")
-    ax1.set_ylabel("Speed-up")
-    ax2.set_ylabel("Efficiency")
+    ax1.set_ylabel("Speed-up", color=colors[0])
+    ax2.set_ylabel("Efficiency", color=colors[1])
     ax1.set_title("Speed-up and Efficiency for SHRT Runtimes")
     ax1.grid()
 

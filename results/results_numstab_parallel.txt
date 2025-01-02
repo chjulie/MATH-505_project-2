@@ -1,18 +1,9 @@
-Rank: 1, Size: 16
-Rank: 4, Size: 16
-Rank: 5, Size: 16
-Rank: 2, Size: 16
-Rank: 12, Size: 16
-Rank: 9, Size: 16
-Rank: 6, Size: 16
-Rank: 3, Size: 16
-Rank: 13, Size: 16
-Rank: 10, Size: 16
-Rank: 7, Size: 16
-Rank: 14, Size: 16
-Rank: 11, Size: 16
-Rank: 15, Size: 16
-Rank: 8, Size: 16
-srun: Job step aborted: Waiting up to 32 seconds for job step to finish.
-slurmstepd: error: *** STEP 4159157.0 ON h158 CANCELLED AT 2025-01-02T11:04:50 ***
-slurmstepd: error: *** JOB 4159157 ON h158 CANCELLED AT 2025-01-02T11:04:50 ***
+/var/spool/slurmd/job4159251/slurm_script: line 12: usr/bin/python/activate: No such file or directory
+/ssoft/spack/syrah/v2/opt/spack/linux-rhel9-skylake_avx512/gcc-11.3.0/python-3.10.4-4cxk6upcdoypsygwvcoa7e5vfj4amry2/bin/python
+1.8.1
+/ssoft/spack/syrah/v2/opt/spack/linux-rhel9-skylake_avx512/gcc-11.3.0/python-3.10.4-4cxk6upcdoypsygwvcoa7e5vfj4amry2/bin/python
+1.8.1
+/ssoft/spack/syrah/v2/opt/spack/linux-rhel9-skylake_avx512/gcc-11.3.0/python-3.10.4-4cxk6upcdoypsygwvcoa7e5vfj4amry2/bin/python
+1.8.1
+/ssoft/spack/syrah/v2/opt/spack/linux-rhel9-skylake_avx512/gcc-11.3.0/python-3.10.4-4cxk6upcdoypsygwvcoa7e5vfj4amry2/bin/python
+1.8.1
