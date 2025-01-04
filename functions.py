@@ -460,12 +460,13 @@ def plot_errors(
     method_name,
     results_folder,
     ks,
-    ls,
+    vars,
     matrix_index,
     colors,
     title,
     optimal_error=None,
     y_label="Nuclear norm relative error",
+    pre_string_legend="",
 ):
     """
     Generate a plot for errors as a function of k for each matrix and method.
@@ -474,31 +475,46 @@ def plot_errors(
     - errors_all: List of errors for the sketching method.
     - method_name: String, either "Gaussian" or "SHRT".
     - ks: List of k values.
-    - ls: List of l values.
+    - vars: Variable to vary (can be l, or number of processors P).
     - matrix_index: Index of the current matrix.
     - colors: colors for each l value.
     - title: title for the plot.
-    - optimal_error: optimal value for the error depending on k
+    - optimal_error: optimal value for the error depending on k.
+    - y_label: Label for the y-axis.
     """
     plt.figure(figsize=(10, 6))
-    for l_idx, l_value in enumerate(ls):
-        errors_l = np.array(errors_all[l_idx])
+    for idx, value in enumerate(vars):
+        errors = np.array(errors_all[idx])
         plt.plot(
-            ks[: len(errors_l)],
-            errors_l,
-            label=f"l={l_value}",
+            ks[: len(errors)],
+            errors,
+            label=pre_string_legend + f"{value}",
             marker="o",
-            c=colors[l_idx],
+            c=colors[idx],
         )
     if optimal_error is not None:
-        plt.scatter(
-            ks[: len(errors_l)],
-            optimal_error[: len(errors_l)],
-            marker="x",
-            c="#d4a00b",
-            label="optimal error",
-            s=15,
-        )
+        for i, k_value in enumerate(ks[: len(optimal_error)]):
+            label = "optimal error" if i == 0 else ""
+            if optimal_error[i] < 1e-16:
+                plt.scatter(k_value, 1e-16, marker="x", c="#d4a00b", s=15, label=label)
+                plt.annotate(
+                    f"{optimal_error[i]:.1e}",
+                    xy=(k_value, 1e-16),
+                    xytext=(k_value, 8e-16),
+                    arrowprops=dict(arrowstyle="->", color="#d4a00b"),
+                    fontsize=8,
+                    ha="center",
+                )
+            else:
+                plt.scatter(
+                    k_value,
+                    optimal_error[i],
+                    marker="x",
+                    c="#d4a00b",
+                    s=15,
+                    zorder=5,
+                    label=label,
+                )
     plt.yscale("log")  # Set y-axis to logarithmic scale
     plt.title(f"{title} ({method_name} sketching)", fontsize=14)
     plt.xlabel(r"Approximation rank $k$", fontsize=12)
@@ -506,11 +522,11 @@ def plot_errors(
     plt.legend()
     plt.grid(True)
     plt.savefig(
-        results_folder + "/" + str(matrix_index) + "_" + method_name + ".png",
+        results_folder + f"{matrix_index}_{method_name}.png",
         bbox_inches="tight",
     )
     plt.savefig(
-        results_folder + "/" + str(matrix_index) + "_" + method_name + ".svg",
+        results_folder + f"{matrix_index}_{method_name}.svg",
         format="svg",
         bbox_inches="tight",
     )
