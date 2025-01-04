@@ -8,7 +8,7 @@ from functions import (
     is_power_of_two,
     rand_nystrom_parallel,
     rand_nystrom_sequential,
-    nuclear_error,
+    nuclear_error_relative,
 )
 
 if __name__ == "__main__":
@@ -42,11 +42,11 @@ if __name__ == "__main__":
     rank_rows = comm_rows.Get_rank()
 
     # INITIAIZE DATA STORAGE
-    json_file = 'results/runtimes_' + str(size) + '.json'
+    json_file = "results/runtimes_" + str(size) + ".json"
     data = []
 
     # LOOP OVER MATRIX SIZES
-    ns = [8192] #[1024, 2048, 4096, 8192]
+    ns = [8192]  # [1024, 2048, 4096, 8192]
 
     for n in ns:
         if rank == 0:
@@ -58,7 +58,7 @@ if __name__ == "__main__":
         A_choice = "mnist"
         n_local = int(n / n_blocks_row)
         seed_global = 42
-        l = 128   # TODO: change value of l??
+        l = 128  # TODO: change value of l??
         k = 100  # k <=l !! + does not influence runtime
 
         # check the size of A
@@ -93,7 +93,6 @@ if __name__ == "__main__":
             AT = comm_rows.bcast(AT, root=0)
         else:
             raise (NotImplementedError)
-
 
         # 1. Distribute A over processors
         # Select columns, scatter them and put them in the right order
@@ -139,7 +138,7 @@ if __name__ == "__main__":
             average_runtimes_gaussian += runtimes
             if rank == 0:
                 print(f"   > it {i+1} done")
-        
+
         average_runtimes_gaussian = average_runtimes_gaussian / it
 
         # SHRT sketching matrix
@@ -163,25 +162,25 @@ if __name__ == "__main__":
                 rank_rows=rank_rows,
                 size_cols=comm_cols.Get_size(),
                 return_runtimes=True,
-                print_computation_times=False
+                print_computation_times=False,
             )
 
             average_runtimes_SHRT += runtimes
             if rank == 0:
                 print(f"   > it {i+1} done")
-        
+
         average_runtimes_SHRT = average_runtimes_SHRT / it
 
         run_details = {
-            'matrix_size': n,
-            'n_proc': size,
-            'runtimes_gaussian': average_runtimes_gaussian.tolist(),
-            'runtimes_SHRT': average_runtimes_SHRT.tolist(),
+            "matrix_size": n,
+            "n_proc": size,
+            "runtimes_gaussian": average_runtimes_gaussian.tolist(),
+            "runtimes_SHRT": average_runtimes_SHRT.tolist(),
         }
         data.append(run_details)
 
     if rank == 0:
-        with open(json_file, 'w') as file:
+        with open(json_file, "w") as file:
             json.dump(data, file, indent=4)
 
         print(" > Program finished successfully!")

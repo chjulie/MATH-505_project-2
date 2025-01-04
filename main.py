@@ -14,8 +14,6 @@ from functions import (
     create_sketch_matrix_SHRT_seq,
 )
 
-# from functions import nuclear_error, random_nystroem, p_random_nystroem
-
 if __name__ == "__main__":
 
     # 1. Import datasets

@@ -11,7 +11,7 @@ if __name__ == "__main__":
     # Images of the matrix will be stored in "results/"
     # Better to run with option "seqential" except when n becomes too big (threshold depends on the machine)
 
-    n = 2**11  # Choose the matrix size!
+    n = 8192  # Choose the matrix size!
     method = "sequential"  # "sequential", "vectorized"
     c = 100
 

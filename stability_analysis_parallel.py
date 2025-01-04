@@ -7,9 +7,10 @@ from data_helpers import pol_decay, exp_decay
 from functions import (
     is_power_of_two,
     rand_nystrom_parallel,
+    nuclear_error_relative,
     nuclear_error,
+    plot_errors,
 )
-from stability_analysis_sequential import plot_errors
 
 if __name__ == "__main__":
 
@@ -45,6 +46,7 @@ if __name__ == "__main__":
     n = 2048
     n_local = int(n / n_blocks_row)
     As = []
+    titles = []
 
     # Parameters for the polynomial and exponential matrices
     R = 10
@@ -52,25 +54,37 @@ if __name__ == "__main__":
     qs = [0.1, 0.25, 1.0]
 
     # Parameters to vary for stability analysis
-    ls = [150, 200, 250, 500]
-    ks = [5, 10, 25, 50, 100, 150]
+    ls = [50]  # , 150, 250, 500, 700]
+    colors = ["#0b3954", "#087e8b", "#bfd7ea", "#ff5a5f", "#c81d25"]
+    ks = [5, 10, 25, 50, 100, 150, 200, 300]
 
     # Generate the matrices
     for p in ps:
         if rank == 0:
             As.append(pol_decay(n, R, p))
+            titles.append(r"$p=$" + str(p))
         else:
             As.append(None)
+            titles.append(None)
     for q in qs:
         if rank == 0:
             As.append(exp_decay(n, R, q))
+            titles.append(r"$q=$" + str(q))
         else:
             As.append(None)
-
+            titles.append(None)
 
     if rank == 0:
         print(" > Matrices initialized")
-    seed_global = 42
+
+    # calculate the sum of k+1 eigenvalues
+    sum_eigenvalues = np.zeros((len(As), len(ks)))
+    if rank == 0:
+        for i, A in enumerate(As):
+            for j, k in enumerate(ks):
+                sum_eigenvalues[i, j] = sum(np.diag(A)[k:])
+
+    seed_global = 0  # 42
 
     errors_gaussian_all = []
     errors_SHRT_all = []
@@ -99,7 +113,7 @@ if __name__ == "__main__":
         if rank == 0:
             AT = A
 
-        AT = comm_rows.bcast(AT, root=0)    
+        AT = comm_rows.bcast(AT, root=0)
 
         submatrix = np.empty((n_local, n), dtype=np.float64)
         receiveMat = np.empty((n_local * n), dtype=np.float64)
@@ -120,64 +134,65 @@ if __name__ == "__main__":
             errors_SHRT_tmp = []
 
             for k in ks:
-                if rank == 0:
-                    print(f"  > k = {k}")
+                if k <= l:
+                    if rank == 0:
+                        print(f"  > k = {k}")
 
-                # gaussian sketching matrix
-                U_local, Sigma_2 = rand_nystrom_parallel(
-                    A_local=A_local,
-                    seed_global=seed_global,
-                    n=n,
-                    k=k,
-                    n_local=n_local,
-                    l=l,
-                    sketching="gaussian",
-                    comm=comm,
-                    comm_cols=comm_cols,
-                    comm_rows=comm_rows,
-                    rank=rank,
-                    rank_cols=rank_cols,
-                    rank_rows=rank_rows,
-                    size_cols=comm_cols.Get_size(),
-                    print_computation_times=False,
-                    return_runtimes=False
-                )
-                U = None
-                if rank == 0:
-                    U = np.empty((n, k), dtype=np.float64)
-                if rank_rows == 0:
-                    comm_cols.Gather(U_local, U, root=0)
+                    # gaussian sketching matrix
+                    U_local, Sigma_2 = rand_nystrom_parallel(
+                        A_local=A_local,
+                        seed_global=seed_global,
+                        n=n,
+                        k=k,
+                        n_local=n_local,
+                        l=l,
+                        sketching="gaussian",
+                        comm=comm,
+                        comm_cols=comm_cols,
+                        comm_rows=comm_rows,
+                        rank=rank,
+                        rank_cols=rank_cols,
+                        rank_rows=rank_rows,
+                        size_cols=comm_cols.Get_size(),
+                        print_computation_times=False,
+                        return_runtimes=False,
+                    )
+                    U = None
+                    if rank == 0:
+                        U = np.empty((n, k), dtype=np.float64)
+                    if rank_rows == 0:
+                        comm_cols.Gather(U_local, U, root=0)
 
-                if rank == 0:
-                    errors_gaussian_tmp.append(nuclear_error(A, U, Sigma_2))
+                    if rank == 0:
+                        errors_gaussian_tmp.append(nuclear_error(A, U, Sigma_2))
 
-                # SHRT sketching matrix
-                U_local, Sigma_2 = rand_nystrom_parallel(
-                    A_local=A_local,
-                    seed_global=seed_global,
-                    n=n,
-                    k=k,
-                    n_local=n_local,
-                    l=l,
-                    sketching="SHRT",
-                    comm=comm,
-                    comm_cols=comm_cols,
-                    comm_rows=comm_rows,
-                    rank=rank,
-                    rank_cols=rank_cols,
-                    rank_rows=rank_rows,
-                    size_cols=comm_cols.Get_size(),
-                    print_computation_times=False,
-                    return_runtimes=False,
-                )
-                U = None
-                if rank == 0:
-                    U = np.empty((n, k), dtype=np.float64)
-                if rank_rows == 0:
-                    comm_cols.Gather(U_local, U, root=0)
+                    # SHRT sketching matrix
+                    U_local, Sigma_2 = rand_nystrom_parallel(
+                        A_local=A_local,
+                        seed_global=seed_global,
+                        n=n,
+                        k=k,
+                        n_local=n_local,
+                        l=l,
+                        sketching="SHRT",
+                        comm=comm,
+                        comm_cols=comm_cols,
+                        comm_rows=comm_rows,
+                        rank=rank,
+                        rank_cols=rank_cols,
+                        rank_rows=rank_rows,
+                        size_cols=comm_cols.Get_size(),
+                        print_computation_times=False,
+                        return_runtimes=False,
+                    )
+                    U = None
+                    if rank == 0:
+                        U = np.empty((n, k), dtype=np.float64)
+                    if rank_rows == 0:
+                        comm_cols.Gather(U_local, U, root=0)
 
-                if rank == 0:
-                    errors_SHRT_tmp.append(nuclear_error(A, U, Sigma_2))
+                    if rank == 0:
+                        errors_SHRT_tmp.append(nuclear_error(A, U, Sigma_2))
 
             if rank == 0:
                 errors_gaussian.append(errors_gaussian_tmp)
@@ -191,14 +206,36 @@ if __name__ == "__main__":
         print(f" > Computations done!")
 
     # Plot for each matrix and method
-    results_folder = "results/numerical_stability_parallel_64"
+    results_folder = "results/numerical_stability_parallel"
     if rank == 0:
         for i in range(len(As)):
             # Gaussian method
-            plot_errors(errors_gaussian_all, "Gaussian", results_folder, ks, ls, i)
+            plot_errors(
+                errors_gaussian_all[i],
+                "gaussian",
+                results_folder,
+                ks,
+                ls,
+                i,
+                colors,
+                titles[i],
+                optimal_error=sum_eigenvalues[i],
+                y_label="nuclear norm error",
+            )
 
             # SHRT method
-            plot_errors(errors_SHRT_all, "SHRT", results_folder, ks, ls, i)
+            plot_errors(
+                errors_SHRT_all[i],
+                "SHRT",
+                results_folder,
+                ks,
+                ls,
+                i,
+                colors,
+                titles[i],
+                optimal_error=sum_eigenvalues[i],
+                y_label="nuclear norm error",
+            )
 
         print(" > Program finished successfully!")
 

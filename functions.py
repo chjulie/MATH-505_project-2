@@ -3,15 +3,21 @@ import scipy
 import random
 import math
 import time
+import matplotlib.pyplot as plt
 
 from typing import Tuple
 from mpi4py import MPI
 
 
-def nuclear_error(A: np.ndarray, U: np.ndarray, Sigma_2: np.ndarray) -> float:
+def nuclear_error_relative(A: np.ndarray, U: np.ndarray, Sigma_2: np.ndarray) -> float:
     err_nuclear = np.linalg.norm(U @ Sigma_2 @ U.T - A, ord="nuc") / np.linalg.norm(
         A, ord="nuc"
     )
+    return err_nuclear
+
+
+def nuclear_error(A: np.ndarray, U: np.ndarray, Sigma_2: np.ndarray) -> float:
+    err_nuclear = np.linalg.norm(U @ Sigma_2 @ U.T - A, ord="nuc")
     return err_nuclear
 
 
@@ -89,13 +95,7 @@ def rand_nystrom_sequential(
     t6 = time.time()
 
     # PRINT OUT COMPUTATION TIMES
-    runtimes = [
-        t2-t1, 
-        t3-t2, 
-        t4-t3, 
-        t5-t4, 
-        t6-t5
-    ]
+    runtimes = [t2 - t1, t3 - t2, t4 - t3, t5 - t4, t6 - t5]
 
     if print_computation_times:
         print("\n ** COMPUTATION TIMES ** \n")
@@ -189,7 +189,7 @@ def rand_nystrom_parallel(
     rank_rows: int,
     size_cols: int,
     print_computation_times: bool = True,
-    return_runtimes: bool = False
+    return_runtimes: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray]:
 
     t1 = time.time()
@@ -302,7 +302,7 @@ def rand_nystrom_parallel(
             sqrt_S_matrix = np.diag(sqrt_S)
             L = U @ sqrt_S_matrix
             # L = lu[perm, :]
-        
+
             # Do LDL Factorization
             # lu, d, perm = scipy.linalg.ldl(B)
             # lu = lu @ np.sqrt(np.abs(d))
@@ -358,13 +358,7 @@ def rand_nystrom_parallel(
     t6 = time.time()
 
     # PRINT OUT COMPUTATION TIMES
-    runtimes = [
-        t2-t1, 
-        t3-t2, 
-        t4-t3, 
-        t5-t4, 
-        t6-t5
-    ]
+    runtimes = [t2 - t1, t3 - t2, t4 - t3, t5 - t4, t6 - t5]
 
     if rank == 0 and print_computation_times:
         print("\n ** COMPUTATION TIMES ** \n")
@@ -459,3 +453,64 @@ def TSQR(
             Q_local = Q_factors[i_local] @ rhs
             i_local += 1
     return Q_local, R
+
+
+def plot_errors(
+    errors_all,
+    method_name,
+    results_folder,
+    ks,
+    ls,
+    matrix_index,
+    colors,
+    title,
+    optimal_error=None,
+    y_label="Nuclear norm relative error",
+):
+    """
+    Generate a plot for errors as a function of k for each matrix and method.
+
+    Parameters:
+    - errors_all: List of errors for the sketching method.
+    - method_name: String, either "Gaussian" or "SHRT".
+    - ks: List of k values.
+    - ls: List of l values.
+    - matrix_index: Index of the current matrix.
+    - colors: colors for each l value.
+    - title: title for the plot.
+    - optimal_error: optimal value for the error depending on k
+    """
+    plt.figure(figsize=(10, 6))
+    for l_idx, l_value in enumerate(ls):
+        errors_l = np.array(errors_all[l_idx])
+        plt.plot(
+            ks[: len(errors_l)],
+            errors_l,
+            label=f"l={l_value}",
+            marker="o",
+            c=colors[l_idx],
+        )
+    if optimal_error is not None:
+        plt.scatter(
+            ks[: len(errors_l)],
+            optimal_error[: len(errors_l)],
+            marker="x",
+            c="#d4a00b",
+            label="optimal error",
+            s=15,
+        )
+    plt.yscale("log")  # Set y-axis to logarithmic scale
+    plt.title(f"{title} ({method_name} sketching)", fontsize=14)
+    plt.xlabel(r"Approximation rank $k$", fontsize=12)
+    plt.ylabel(y_label, fontsize=12)
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(
+        results_folder + "/" + str(matrix_index) + "_" + method_name + ".png",
+        bbox_inches="tight",
+    )
+    plt.savefig(
+        results_folder + "/" + str(matrix_index) + "_" + method_name + ".svg",
+        format="svg",
+        bbox_inches="tight",
+    )

@@ -7,7 +7,7 @@ from functions import (
     is_power_of_two,
     rand_nystrom_parallel,
     rand_nystrom_sequential,
-    nuclear_error,
+    nuclear_error_relative,
 )
 
 if __name__ == "__main__":
@@ -110,7 +110,7 @@ if __name__ == "__main__":
         )
 
         print("Sequential algorihtm done! ")
-        err_nuclear = nuclear_error(A, U, Sigma_2)
+        err_nuclear = nuclear_error_relative(A, U, Sigma_2)
         print("Error in nuclear norm", err_nuclear)
 
     # ***********************
@@ -158,7 +158,7 @@ if __name__ == "__main__":
         comm_cols.Gather(U_local, U, root=0)
 
     if rank == 0:
-        err_nuclear = nuclear_error(A, U, Sigma_2)
+        err_nuclear = nuclear_error_relative(A, U, Sigma_2)
         print("Error in nuclear norm", err_nuclear)
 
     # finish_timestamp = time.localtime(time.time())

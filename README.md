@@ -10,9 +10,11 @@ Project 2 for the class MATH-505 HPC for numerical methods and data analysis
     - Fast Walsh-Hadamard Transform (vectorized or non-vectorized function)
     - Nuclear norm computation
     - TSQR
-- stability_analysis_sequential.py: test stability of Nyström algorithm with the sequential algorithm
 - stability_analysis_parallel.py: test stability of Nyström algorithm with the parallelized algorithm
-- runtimes.py
+- runtimes_analysis.py
+- runtimes_parallel.py
+- runtimes_sequential.py
 - generate_mnist_matrix.py: generate a matric from the MNIST dataset with a specified size
 - data_helpers.py: functions to generate the matrices used in this project
+- visualizations_pol_exp_matrices.py: produce visualizations of the exponential and polynomial decay matrices
 
