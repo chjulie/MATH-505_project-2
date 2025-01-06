@@ -75,7 +75,7 @@ if __name__ == "__main__":
     if rank == 0:
         print(" > Matrices initialized")
 
-    # calculate the sum of k+1 eigenvalues
+    # Calculate the sum of k+1 eigenvalues
     optimal_errors = np.zeros((len(As), len(ks)))
     if rank == 0:
         for i, A in enumerate(As):
@@ -103,7 +103,7 @@ if __name__ == "__main__":
         errors_SHRT = []
 
         # DISTRIBUTE A OVER PROCESSORS
-        # check the size of A
+        # Check the size of A
         if n_blocks_col * n_local != n:  # Check n is divisible by n_blocks_row
             if rank == 0:
                 print(
@@ -145,7 +145,7 @@ if __name__ == "__main__":
                     if rank == 0:
                         print(f"  > k = {k}")
 
-                    # gaussian sketching matrix
+                    # Gaussian sketching matrix
                     U_local, Sigma_2 = rand_nystrom_parallel(
                         A_local=A_local,
                         seed_global=seed_global,

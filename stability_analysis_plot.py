@@ -1,14 +1,7 @@
-import numpy as np
-import matplotlib.pyplot as plt
 import os
 import json
 
-from data_helpers import pol_decay, exp_decay
 from functions import (
-    is_power_of_two,
-    rand_nystrom_parallel,
-    nuclear_error_relative,
-    nuclear_error,
     plot_errors,
 )
 
@@ -16,7 +9,7 @@ if __name__ == "__main__":
 
     folder = "results/numerical_stability_data/"
     Ps = [1, 4, 16, 64]
-    colors = ["#0b3954", "#087e8b", "#ff5a5f", "#c81d25"]  # "#bfd7ea"
+    colors = ["#0b3954", "#087e8b", "#ff5a5f", "#c81d25"]
     n = 4096
     l = 64
     ks = [10, 25, 32, 64]

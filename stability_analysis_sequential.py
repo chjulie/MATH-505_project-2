@@ -17,7 +17,6 @@ if __name__ == "__main__":
     ks = [10, 25, 32, 64]
 
     # Generate the matrix
-    # A = np.load("data/mnist_" + str(n) + ".npy")
     A = pol_decay(n, R=10, p=2)
 
     seed_sequential = 42
@@ -39,7 +38,7 @@ if __name__ == "__main__":
                 seed=seed_sequential,
                 n=n,
                 sketching="gaussian",
-                k=k,  # truncation rank
+                k=k,  # Truncation rank
                 l=l,
                 return_extra=False,
                 return_runtimes=False,
@@ -53,7 +52,7 @@ if __name__ == "__main__":
                 seed=seed_sequential,
                 n=n,
                 sketching="SHRT",
-                k=k,  # truncation rank
+                k=k,  # Truncation rank
                 l=l,
                 return_extra=False,
                 return_runtimes=False,
@@ -63,6 +62,7 @@ if __name__ == "__main__":
             errors_SHRT.append(nuclear_error_relative(A, U, Sigma_2))
 
     print(f" > Computations done!")
+    # Save results in a JSON file
     json_file = "results/numerical_stability_data/P1_n" + str(n) + ".json"
     results = {}
     results["gaussian"] = errors_gaussian

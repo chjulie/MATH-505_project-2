@@ -16,11 +16,6 @@ def nuclear_error_relative(A: np.ndarray, U: np.ndarray, Sigma_2: np.ndarray) ->
     return err_nuclear
 
 
-def nuclear_error(A: np.ndarray, U: np.ndarray, Sigma_2: np.ndarray) -> float:
-    err_nuclear = np.linalg.norm(U @ Sigma_2 @ U.T - A, ord="nuc")
-    return err_nuclear
-
-
 def rand_nystrom_sequential(
     A: np.ndarray,
     seed: int,
@@ -51,7 +46,6 @@ def rand_nystrom_sequential(
         B = B[R, :]
 
     elif sketching == "gaussian":
-
         Omega = np.random.normal(loc=0.0, scale=1.0, size=[l, n])
         # C = (Ω × A).T
         C = (Omega @ A).T
@@ -247,13 +241,8 @@ def rand_nystrom_parallel(
 
             comm_cols.Reduce(B_local, B, op=MPI.SUM, root=0)
 
-            # if rank == 0:
-            #     print(" B.shape: ", B.shape)
-            #     print(" C.shape: ", C.shape)
-            # print(f" * Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: B: {B}\n")
-
     elif sketching == "gaussian":
-
+        # Share the seed amongst rows (distribute Ω over the columns)
         np.random.seed(rank_rows)
 
         C = None
@@ -266,7 +255,6 @@ def rand_nystrom_parallel(
         C_local = np.random.normal(loc=0.0, scale=1.0, size=[l, n_local]) @ A_local
 
         comm_rows.Reduce(C_local, C, op=MPI.SUM, root=0)
-        # print(f" * Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: C: {C}\n")
 
         # 2.1 Compute B = Ω × C.T
         B = None
@@ -280,7 +268,6 @@ def rand_nystrom_parallel(
 
             B_local = np.random.normal(loc=0.0, scale=1.0, size=[l, n_local]) @ C.T
             comm_cols.Reduce(B_local, B, op=MPI.SUM, root=0)
-            # print(f" * Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: B: {B}\n")
 
     else:
         raise (NotImplementedError)
@@ -294,21 +281,18 @@ def rand_nystrom_parallel(
     if rank == 0:  # compute only at the root
         try:  # Try Cholesky
             L = np.linalg.cholesky(B)
-            # print(" > Cholesky succeeded!")
         except np.linalg.LinAlgError as err:
-            U, S, _ = np.linalg.svd(B)
-            sqrt_S = np.sqrt(S)  # Compute square root of the singular values
-            # Construct the self-adjoint square root
-            sqrt_S_matrix = np.diag(sqrt_S)
-            L = U @ sqrt_S_matrix
-            # L = lu[perm, :]
+            # U, S, _ = np.linalg.svd(B)
+            # sqrt_S = np.sqrt(S)  # Compute square root of the singular values
+            # # Construct the self-adjoint square root
+            # sqrt_S_matrix = np.diag(sqrt_S)
+            # L = U @ sqrt_S_matrix
 
             # Do LDL Factorization
-            # lu, d, perm = scipy.linalg.ldl(B)
-            # lu = lu @ np.sqrt(np.abs(d))
-            # L = lu[perm, :]
-            # permute = True
-            # print(" > LDL factorization succeeded!")
+            lu, d, perm = scipy.linalg.ldl(B)
+            lu = lu @ np.sqrt(np.abs(d))
+            L = lu[perm, :]
+            permute = True
 
     L = comm_cols.bcast(L, root=0)  # Broadcast through columns
     perm = comm_cols.bcast(perm, root=0)
@@ -341,19 +325,17 @@ def rand_nystrom_parallel(
     Sigma_2 = None
     if rank == 0:
         U_tilde, S, V = np.linalg.svd(R)
-
-        # truncate to get rank k
+        # Truncate to get rank k
         S_2 = S[:k] * S[:k]
         Sigma_2 = np.diag(S_2)
         U_tilde = U_tilde[:, :k]
 
-    U_tilde = comm_cols.bcast(U_tilde, root=0)  # broadcast through cols
+    U_tilde = comm_cols.bcast(U_tilde, root=0)  # Broadcast through cols
 
     # 6. Compute U_hat = Q @ U
     U_hat_local = None
     if rank_rows == 0:
         U_hat_local = Q_local @ U_tilde
-        # print(f" * Rank {rank}, rank_cols: {rank_cols}, rank_rows: {rank_rows}: U_local: {U_hat_local}\n")
 
     t6 = time.time()
 
@@ -474,6 +456,7 @@ def plot_errors(
     Parameters:
     - errors_all: List of errors for the sketching method.
     - method_name: String, either "Gaussian" or "SHRT".
+    - result_folder: where to save the figure
     - ks: List of k values.
     - vars: Variable to vary (can be l, or number of processors P).
     - matrix_index: Index of the current matrix.
@@ -481,6 +464,7 @@ def plot_errors(
     - title: title for the plot.
     - optimal_error: optimal value for the error depending on k.
     - y_label: Label for the y-axis.
+    - pre_string_legend: string to add to the legend before the var from vars.
     """
     plt.figure(figsize=(10, 6))
     for idx, value in enumerate(vars):
@@ -525,6 +509,7 @@ def plot_errors(
         results_folder + f"{matrix_index}_{method_name}.png",
         bbox_inches="tight",
     )
+    # Print in svg format too
     plt.savefig(
         results_folder + f"{matrix_index}_{method_name}.svg",
         format="svg",

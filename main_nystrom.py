@@ -38,9 +38,6 @@ if __name__ == "__main__":
     rank_cols = comm_cols.Get_rank()
     rank_rows = comm_rows.Get_rank()
 
-    # print('rank cols: ', rank_cols)
-    # print('rank rows: ', rank_rows)
-
     # INITIALIZATION
     A = None
     AT = None
@@ -160,7 +157,3 @@ if __name__ == "__main__":
     if rank == 0:
         err_nuclear = nuclear_error_relative(A, U, Sigma_2)
         print("Error in nuclear norm", err_nuclear)
-
-    # finish_timestamp = time.localtime(time.time())
-    # formatted_time = time.strftime("%H:%M:%S", finish_timestamp)
-    # print(f" * proc {rank}: finished program at {formatted_time} ")

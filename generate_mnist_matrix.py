@@ -1,6 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
 
 from data_helpers import get_MNIST_data
 

@@ -1,12 +1,9 @@
 import numpy as np
-import time
 import json
 
 from data_helpers import pol_decay, exp_decay
 from functions import (
-    is_power_of_two,
     rand_nystrom_sequential,
-    nuclear_error_relative,
 )
 
 if __name__ == "__main__":
@@ -28,7 +25,7 @@ if __name__ == "__main__":
 
         A_choice = "mnist"
         seed_global = 42
-        l = 128  # TODO: change value of l??
+        l = 128
         k = 100  # k <=l !! + does not influence runtime
 
         # GENERATE THE MATRIX A
@@ -36,10 +33,10 @@ if __name__ == "__main__":
         if A_choice == "exp_decay" or A_choice == "pol_decay":
             R = 10
             if A_choice == "exp_decay":
-                q = 0.1  # TODO: change if needed
+                q = 0.1  # Change if needed
                 A = exp_decay(n, R, q)
             elif A_choice == "pol_decay":
-                p = 0.5  # TODO; change if needed
+                p = 0.5  # Change if needed
                 A = pol_decay(n, R, p)
             else:
                 raise (NotImplementedError)
@@ -65,9 +62,9 @@ if __name__ == "__main__":
                 seed=seed_sequential,
                 n=n,
                 sketching="gaussian",
-                k=k,  # truncation rank
+                k=k,  # Truncation rank
                 l=l,
-                return_extra=False,  # if True, returns S_B: condition number of B and rank_A: np.linalg.matrix_rank(A)
+                return_extra=False,
                 return_runtimes=True,
                 print_computation_times=False,
             )
@@ -86,9 +83,9 @@ if __name__ == "__main__":
                 seed=seed_sequential,
                 n=n,
                 sketching="SHRT",
-                k=k,  # truncation rank
+                k=k,  # Truncation rank
                 l=l,
-                return_extra=False,  # if True, returns S_B: condition number of B and rank_A: np.linalg.matrix_rank(A)
+                return_extra=False,
                 return_runtimes=True,
                 print_computation_times=False,
             )

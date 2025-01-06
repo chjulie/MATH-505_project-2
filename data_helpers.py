@@ -73,7 +73,6 @@ def get_MNIST_data(filename: str, n: int, c: float, method: str) -> np.array:
         difference_array = x_data[:, _] - x_data[_, :]
         print("difference array shape: ", difference_array.shape)
         A = RBF(difference_array, c)
-        # A = np.exp(- difference_array ** 2 / c**2)
         print("A shape: ", A.shape)
     elif method == "sequential":
         A = np.zeros((n, n))
@@ -88,7 +87,6 @@ def get_MNIST_data(filename: str, n: int, c: float, method: str) -> np.array:
         A = A + np.transpose(A)
         for i in range(n):
             A[i, i] = 1
-        # np.fill_diagonal(A, 1.0)
     else:
         print("Invalid method")
 
@@ -105,10 +103,6 @@ def get_MNIST_data(filename: str, n: int, c: float, method: str) -> np.array:
     cmap = "inferno"
     im = ax.imshow(A, cmap=cmap)
     cbar = ax.figure.colorbar(im, ax=ax, cmap=cmap)
-    # cbar.ax.set_ylabel(rotation=-90, va="bottom")
-    # ax.set_title(
-    #     f"Visualization of matrix A generated with RBF\nfrom the MNIST dataset, N = {n}"
-    # )
     ax.set_title(f"n = {n}")
     plt.savefig(
         f"results/matrix_visualization/A_MNIST_{n}_visualization.png",

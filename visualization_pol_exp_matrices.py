@@ -1,8 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-# plt.style.use("ggplot")
-
 from data_helpers import pol_decay, exp_decay
 
 if __name__ == "__main__":
@@ -28,7 +26,6 @@ if __name__ == "__main__":
         As_exp.append(exp_decay(n, R, q))
 
     fig_diag, axs_diag = plt.subplots(nrows=1, ncols=2, figsize=(10, 4))
-    # fig_diag.suptitle("Diagonal entries of A")
     axs_diag[0].set_title(r"$A_1$: Polynomial Decay")
     axs_diag[1].set_title(r"$A_2$: Exponential Decay")
 

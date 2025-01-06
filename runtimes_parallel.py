@@ -1,14 +1,11 @@
 import numpy as np
 from mpi4py import MPI
-import time
 import json
 
 from data_helpers import pol_decay, exp_decay
 from functions import (
     is_power_of_two,
     rand_nystrom_parallel,
-    rand_nystrom_sequential,
-    nuclear_error_relative,
 )
 
 if __name__ == "__main__":
@@ -51,6 +48,7 @@ if __name__ == "__main__":
     for n in ns:
         if rank == 0:
             print(f" > n = {n}")
+
         # INITIALIZATION
         A = None
         AT = None
@@ -58,10 +56,10 @@ if __name__ == "__main__":
         A_choice = "mnist"
         n_local = int(n / n_blocks_row)
         seed_global = 42
-        l = 128  # TODO: change value of l??
+        l = 128
         k = 100  # k <=l !! + does not influence runtime
 
-        # check the size of A
+        # Check the size of A
         if n_blocks_col * n_local != n:  # Check n is divisible by n_blocks_row
             if rank == 0:
                 print(
@@ -75,20 +73,23 @@ if __name__ == "__main__":
 
         # GENERATE THE MATRIX A
         if A_choice == "exp_decay" or A_choice == "pol_decay":
-            # generate at root and then broadcast
+            # Generate at root and then broadcast
             if rank == 0:
+                R = 10
                 if A_choice == "exp_decay":
+                    q = 0.1
                     A = exp_decay(n, R, q)
                 else:
+                    p = 0.5
                     A = pol_decay(n, R, p)
-                AT = A  # matrix is SPD
+                AT = A  # Matrix is SPD
                 print("Shape of A: ", A.shape)
             AT = comm_rows.bcast(AT, root=0)
 
         elif A_choice == "mnist":
             if rank == 0:
                 A = np.load("data/mnist_" + str(n) + ".npy")
-                AT = A  # matrix is SPD
+                AT = A  # Matrix is SPD
                 print("Shape of A: ", A.shape)
             AT = comm_rows.bcast(AT, root=0)
         else:
@@ -184,7 +185,3 @@ if __name__ == "__main__":
             json.dump(data, file, indent=4)
 
         print(" > Program finished successfully!")
-
-    # finish_timestamp = time.localtime(time.time())
-    # formatted_time = time.strftime("%H:%M:%S", finish_timestamp)
-    # print(f" * proc {rank}: finished program at {formatted_time} ")

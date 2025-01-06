@@ -49,11 +49,9 @@ if __name__ == "__main__":
 
     # Generate the matrix
     if rank == 0:
-        # A = np.load("data/mnist_" + str(n) + ".npy")
         A = pol_decay(n, R=10, p=2)
     else:
         A = None
-        # title = None
 
     if rank == 0:
         print(" > Matrix initialized")
@@ -101,7 +99,7 @@ if __name__ == "__main__":
             if rank == 0:
                 print(f"  > k = {k}")
 
-            # gaussian sketching matrix
+            # Gaussian sketching matrix
             U_local, Sigma_2 = rand_nystrom_parallel(
                 A_local=A_local,
                 seed_global=seed_global,
@@ -159,6 +157,7 @@ if __name__ == "__main__":
 
     if rank == 0:
         print(f" > Computations done!")
+        # Save results in a JSON file
         json_file = (
             "results/numerical_stability_data/P" + str(size) + "_n" + str(n) + ".json"
         )

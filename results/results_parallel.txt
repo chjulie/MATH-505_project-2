@@ -1,6 +1,0 @@
-Shape of A:  (8192, 8192)
- * l:  200
- * n:  8192
- * A:  (8192, 8192)
-Sequential algorihtm done! 
- * proc 0: finished program at 17:41:56 
